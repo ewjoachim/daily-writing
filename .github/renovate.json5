@@ -1,0 +1,17 @@
+{
+  extends: ["config:recommended", ":enablePreCommit"],
+  schedule: ["* * 6 * *"],
+  labels: ["deps"],
+  lockFileMaintenance: {
+    enabled: true,
+    automerge: true,
+  },
+  packageRules: [
+    {
+      groupName: "all dependencies",
+      groupSlug: "all",
+      matchPackageNames: ["*"],
+    },
+  ],
+  automerge: true,
+}

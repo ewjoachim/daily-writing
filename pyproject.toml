@@ -1,0 +1,65 @@
+[build-system]
+requires = ["uv_build>=0.9.8,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[project]
+name = "daily-writing"
+version = "0.1.0"
+authors = [{ name = "Joachim Jablon", email = "ewjoachim@gmail.com" }]
+description = "Python-based static site generator for writing challenges"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "htpy>=25.10.0",
+    "markdown>=3.10",
+    "beautifulsoup4>=4.14.2",
+    "pydantic>=2.12.4",
+    "pydantic-extra-types[pycountry]>=2.10.6",
+    "pydantic-settings>=2.12.0",
+    # Social cards:
+    "brotli>=1.1.0", # for fonts
+    "fonttools>=4.60.1",
+    "pillow>=11.3.0",
+    "numpy>=2.3.4",
+    # RSS:
+    "feedgen>=1.0.0",
+    "tzlocal>=5.3.1",
+]
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.121.0",
+    "pdbpp>=0.11.7",
+    "uvicorn>=0.38.0",
+    "watchfiles>=1.1.1",
+    "websockets>=15.0.1",
+]
+
+[project.scripts]
+daily-writing = "daily_writing.__main__:main"
+
+[dependency-groups]
+lint = ["ruff>=0.13.3"]
+
+[tool.basedpyright]
+exclude = [".venv"]
+reportUnknownMemberType = false
+reportUnusedCallResult = false
+reportAny = false
+reportExplicitAny = false
+reportUnreachable = false
+
+[tool.ruff.lint]
+extend-select = [
+    "UP",  # pyupgrade
+    "I",   # isort
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "RUF", # ruff
+]
+fixable = ["ALL"]
+extend-ignore = [
+    "E501", # line too long
+]
