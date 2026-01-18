@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import logging
 import pathlib
 from typing import Any, override
 
@@ -9,8 +10,12 @@ import uvicorn
 import watchfiles
 import watchfiles.main
 
+from daily_writing import build_context
+
 from . import build
 from . import settings as settings_module
+
+logger = logging.getLogger("daily_writing")
 
 
 def serve(settings: settings_module.Settings):
@@ -18,10 +23,14 @@ def serve(settings: settings_module.Settings):
 
 
 async def serve_async(settings: settings_module.Settings):
+    if not settings.serve:
+        raise NotImplementedError()
+
     reload_event = asyncio.Event()
     stop_event = asyncio.Event()
 
     app = fastapi.FastAPI()
+    settings.base_url = ""
 
     async def websocket_endpoint(
         websocket: fastapi.WebSocket,
@@ -51,10 +60,10 @@ async def serve_async(settings: settings_module.Settings):
 
     async def ping_websocket(file_changes: set[watchfiles.main.FileChange]) -> None:
         change_paths = sorted(
-            str(pathlib.Path(f[1]).relative_to(pathlib.Path.cwd()))
+            str(pathlib.Path(f[1]).relative_to(pathlib.Path.cwd(), walk_up=True))
             for f in file_changes
         )
-        print(f"Reloading ({', '.join(change_paths)})")
+        logger.info(f"Reloading ({', '.join(change_paths)})")
         reload_event.set()
 
     # When the shutdown of the server is requested, we set an event that stops all the
@@ -65,20 +74,23 @@ async def serve_async(settings: settings_module.Settings):
             stop_event.set()
             await super().shutdown(*args, **kwargs)
 
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000, workers=1)
+    config = uvicorn.Config(app, host="127.0.0.1", port=8000, workers=1)
     server = ShutdownServer(config)
 
-    settings.inject_hot_reload_js = True
+    context = build_context.BuildContext(inject_hot_reload_js=True)
 
     try:
         await asyncio.gather(
             server.serve(),
             watchfiles.arun_process(
                 ".",
+                *settings.serve.additional_paths,
                 watch_filter=watchfiles.DefaultFilter(
                     ignore_paths=[settings.build_dir.absolute()]
                 ),
-                target=functools.partial(build.build, settings=settings),
+                target=functools.partial(
+                    build.build, settings=settings, context=context
+                ),
                 target_type="function",
                 callback=ping_websocket,
             ),

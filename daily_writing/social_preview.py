@@ -1,19 +1,50 @@
 from __future__ import annotations
 
+import dataclasses
 import functools
+import hashlib
 import io
 import itertools
 import logging
 import pathlib
 import textwrap
 
-import fontTools.ttLib.woff2  # pyright: ignore[reportMissingTypeStubs]
+import fontTools.ttLib.woff2
 import numpy as np
+import pydantic
 from PIL import Image, ImageDraw, ImageFont
+from pydantic import dataclasses as pdataclasses
 
-from . import models
+logger = logging.getLogger("daily_writing")
 
-logger = logging.getLogger(__name__)
+
+@pdataclasses.dataclass(
+    kw_only=True, config=pydantic.ConfigDict(arbitrary_types_allowed=True)
+)
+class SocialPreviewContents:
+    """
+    Parameters for generating a social preview PNG.
+    """
+
+    top_line: str
+    title: str
+    description: str
+    logo: pathlib.Path
+    date: str | None  # this might not strictly be a date
+    colors: list[str]
+    body_font: io.BytesIO | pathlib.Path
+    title_font: io.BytesIO | pathlib.Path
+
+    @property
+    def signature(self) -> str:
+        self_dict = dataclasses.asdict(self)
+        if isinstance(self.body_font, io.BytesIO):
+            self_dict["body_font"] = hashlib.md5(self.body_font.getvalue())
+
+        if isinstance(self.title_font, io.BytesIO):
+            self_dict["title_font"] = hashlib.md5(self.title_font.getvalue())
+
+        return hashlib.md5(b"").hexdigest()[:8]
 
 
 @functools.cache
@@ -24,12 +55,18 @@ def get_ttf_font(path: pathlib.Path) -> ImageFont.FreeTypeFont:
     return ImageFont.FreeTypeFont(bytes_obj)
 
 
-def generate_social_preview(contents: models.SocialPreviewContents) -> io.BytesIO:
+def generate_social_preview(contents: SocialPreviewContents) -> io.BytesIO:
     image = Image.new(mode="RGBA", size=(1200, 630), color="#1d1d1d")
     draw = ImageDraw.Draw(image)
 
-    title_font = get_ttf_font(contents.title_font_file_woff2)
-    body_font = get_ttf_font(contents.body_font_file_woff2)
+    if isinstance(contents.body_font, io.BytesIO):
+        contents.body_font.seek(0)
+
+    if isinstance(contents.title_font, io.BytesIO):
+        contents.title_font.seek(0)
+
+    title_font = ImageFont.FreeTypeFont(contents.body_font)
+    body_font = ImageFont.FreeTypeFont(contents.title_font)
 
     top_line_font = title_font.font_variant(size=36)
     top_line_font.set_variation_by_name("SemiBold")

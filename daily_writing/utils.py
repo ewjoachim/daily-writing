@@ -1,23 +1,18 @@
 from __future__ import annotations
 
+import calendar
+import datetime
 import functools
 import itertools
 import pathlib
 import random
 import string
-from collections.abc import Iterable
-
-import bs4
-import markdown as markdown_module
+from collections.abc import Callable, Iterable
 
 
 @functools.cache
-def excerpt(markdown: str, max_length: int = 200) -> str:
-    soup = bs4.BeautifulSoup(markdown_module.markdown(markdown), "html.parser")
-    h1 = soup.h1
-    assert h1
-    h1.clear()
-    words = soup.get_text().split()
+def excerpt(text: str, max_length: int = 200) -> str:
+    words = text.split()
 
     length = 0
     take_first = 0
@@ -53,15 +48,49 @@ def get_prev[T](obj: T, iterable: Iterable[T]) -> T | None:
 
 
 def get_next[T](obj: T, iterable: Iterable[T]) -> T | None:
-    for current, next in itertools.pairwise(iterable):
+    for current, next_item in itertools.pairwise(iterable):
         if current is obj:
-            return next
+            return next_item
     return None
 
 
-def get_github_path_for_file(file: pathlib.Path) -> pathlib.Path:
-    return "blob/HEAD" / file
+def get_repository_url_for_file(
+    repository_url: str, repository_file_url_prefix: str, file: pathlib.Path
+) -> str:
+    return "/".join(
+        e.strip("/")
+        for e in [
+            repository_url,
+            repository_file_url_prefix,
+            str(file),
+        ]
+    )
 
 
 def cache_bust():
-    return "".join(random.choices(string.digits + string.ascii_letters, k=12))
+    return "".join(random.choices(string.digits + string.ascii_letters, k=12))  # noqa: S311
+
+
+def date_grouper[T](
+    index: int, element: T, *, key: Callable[[T], datetime.date]
+) -> tuple[int, int, int, int]:
+    """
+    Take an object from which a date can be extracted, and its index in an iterable, and
+    return a tuple that will have the same value for consecutive days in the same week.
+    """
+    date = key(element)
+    _, week, _ = date.isocalendar()
+    return (
+        date.year,
+        date.month,
+        week,
+        (date - datetime.date(2000, 1, 1)).days - index,
+    )
+
+
+def first_weekday(year: int, month: int) -> int:
+    return calendar.monthrange(year, month)[0]
+
+
+def same_month(*dates: datetime.date) -> bool:
+    return len({(date.year, date.month) for date in dates}) == 1
