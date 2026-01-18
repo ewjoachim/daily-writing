@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import functools
 import itertools
 import pathlib
@@ -59,9 +60,22 @@ def get_next[T](obj: T, iterable: Iterable[T]) -> T | None:
     return None
 
 
-def get_github_path_for_file(file: pathlib.Path) -> pathlib.Path:
-    return "blob/HEAD" / file
+def get_repository_url_for_file(
+    repository_url: str, repository_file_url_prefix: str, file: pathlib.Path
+) -> str:
+    return "/".join(
+        e.strip("/")
+        for e in [
+            repository_url,
+            repository_file_url_prefix,
+            str(file),
+        ]
+    )
 
 
 def cache_bust():
     return "".join(random.choices(string.digits + string.ascii_letters, k=12))
+
+
+def first_weekday(year: int, month: int) -> int:
+    return calendar.monthrange(year, month)[0]

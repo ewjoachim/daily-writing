@@ -1,11 +1,25 @@
+from __future__ import annotations
+
 import datetime
+import io
 import pathlib
 import zoneinfo
+from typing import cast
 
 from feedgen.feed import FeedGenerator  # pyright: ignore[reportMissingTypeStubs]
+from pydantic import dataclasses as pdataclasses
 
-from . import models
+from daily_writing import artifacts
+
 from . import settings as settings_module
+
+
+@pdataclasses.dataclass(kw_only=True)
+class FeedEntryArtifact:
+    id: str
+    title: str
+    link: str
+    date: datetime.date
 
 
 class Feed:
@@ -16,7 +30,7 @@ class Feed:
         self.feed_gen.author(name=settings.author)
         self.feed_gen.link(href=settings.base_url, rel="self")
         self.feed_gen.subtitle(settings.description)
-        self.feed_gen.language(settings.language)
+        self.feed_gen.language(str(settings.locale.locale))
         self.timezone: str = settings.timezone
         self.atom_path: pathlib.Path = settings.atom_path
 
@@ -31,6 +45,8 @@ class Feed:
             ).isoformat()
         )
 
-    def get_artifact(self) -> models.BytesArtifact:
-        contents: bytes = self.feed_gen.atom_str(pretty=True)  # pyright: ignore[reportUnknownVariableType]
-        return models.BytesArtifact(path=self.atom_path, contents=contents)  # pyright: ignore[reportUnknownArgumentType]
+    def get_artifact(self) -> artifacts.BytesArtifact:
+        contents: bytes = cast(bytes, self.feed_gen.atom_str(pretty=True))
+        return artifacts.BytesArtifact(
+            path=self.atom_path, contents=io.BytesIO(contents)
+        )

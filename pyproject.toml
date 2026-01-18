@@ -27,6 +27,10 @@ dependencies = [
     # RSS:
     "feedgen>=1.0.0",
     "tzlocal>=5.3.1",
+    "httpx>=0.28.1",
+    "babel>=2.17.0",
+    "langcodes>=3.5.1",
+    "python-frontmatter>=1.1.0",
 ]
 [project.optional-dependencies]
 server = [
@@ -50,14 +54,39 @@ reportUnusedCallResult = false
 reportAny = false
 reportExplicitAny = false
 reportUnreachable = false
+reportImplicitStringConcatenation = false
 
 [tool.ruff.lint]
+preview = true
 extend-select = [
-    "UP",  # pyupgrade
-    "I",   # isort
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "RUF", # ruff
+    "E",     # pycodestyle (Error)
+    "W",     # pycodestyle (Warning)
+    "F",     # pyflakes
+    "ASYNC", # flake8-async
+    "S",     # flake8-bandit
+    "UP",    # pyupgrade
+    "PL",    # pylint
+    "TID",   # flake8-tidy-imports
+    "N",     # pep8-naming
+    "B",     # flake8-bugbear
+    "A",     # flake8-builtins
+    "SLF",   # flake8-self
+    "T20",   # flake8-print
+    "ICN",   # flake8-import-conventions
+    "RUF",   # ruff (RUFF specific rules)
+    "Q",     # flake8-quotes
+    "T10",   # flake8-debugger
+    "I",     # isort
+]
+ignore = [
+    "PLR0911", # https://docs.astral.sh/ruff/rules/too-many-return-statements/
+    "PLR0912", # https://docs.astral.sh/ruff/rules/too-many-branches/
+    "PLR0913", # https://docs.astral.sh/ruff/rules/too-many-arguments/
+    "PLR0915", # https://docs.astral.sh/ruff/rules/too-many-statements/
+    "RUF029",  # https://docs.astral.sh/ruff/rules/unused-async/
+    "N818",    # https://docs.astral.sh/ruff/rules/error-suffix-on-exception-name/
+    "PLR2004", # https://docs.astral.sh/ruff/rules/magic-value-comparison/
+    "S324",    # https://docs.astral.sh/ruff/rules/hashlib-insecure-hash-function/
 ]
 fixable = ["ALL"]
 extend-ignore = [

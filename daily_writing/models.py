@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-import calendar
-import dataclasses
 import datetime
 import functools
-import hashlib
+import io
+import logging
 import pathlib
-import tomllib
-import zoneinfo
-from collections.abc import Iterable, Mapping, Sequence
-from typing import Self, override
+import re
+from collections.abc import Iterable, Iterator
+from typing import Any, Self
 
-import pydantic
-import pydantic_extra_types.color
+import frontmatter
 from pydantic import dataclasses as pdataclasses
 
 from . import settings as settings_module
 from . import utils
+
+logger = logging.getLogger("daily_writing")
 
 
 @pdataclasses.dataclass(kw_only=True)
@@ -32,8 +31,16 @@ class MarkdownFile:
     md_path: pathlib.Path
 
     @functools.cached_property
+    def post(self) -> frontmatter.Post:
+        return frontmatter.load(io.StringIO(self.md_path.read_text()))
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self.post.metadata
+
+    @property
     def markdown(self) -> str:
-        return self.md_path.read_text()
+        return self.post.content
 
     def excerpt(self, max_length: int = 200) -> str:
         return utils.excerpt(markdown=self.markdown, max_length=max_length)
@@ -56,62 +63,112 @@ class MarkdownFile:
         return self.title_elements[-1]
 
 
+class NotAWriting(Exception):
+    pass
+
+
 @pdataclasses.dataclass(kw_only=True)
 class Writing:
+    path: pathlib.Path
     date: datetime.date
     original_prompt: str
+    month_is_fixed: bool
+    prompts: list[Prompt]
 
     @classmethod
-    def from_path(cls, path: pathlib.Path, month: int) -> Self:
-        year = path.parent.name
-        day_title = path.stem
-        day, word = day_title.split("-", 1)
-        return cls(date=datetime.date(int(year), month, int(day)), original_prompt=word)
+    def from_path(
+        cls, path: pathlib.Path, month: int, year: int, month_is_fixed: bool
+    ) -> Self:
+        if path.suffix.lower() != ".md":
+            raise NotAWriting
+
+        day = None
+        original_prompt = None
+        if match := re.match(r"^(?P<day_number>\d+)\-(?P<title>\w+)\.md$", path.name):
+            day = int(match.group("day_number"))
+            original_prompt = match.group("title")
+
+        prompts
+        return cls(
+            date=datetime.date(year, month, day),
+            original_prompt=original_prompt,
+            month_is_fixed=month_is_fixed,
+            prompts=prompts,
+        )
 
     @classmethod
-    def get_all(cls, settings: settings_module.Settings) -> Writings:
-        result: dict[int, list[Self]] = {}
-        for year in settings.years:
-            year_folder = settings.source_dir / f"{year}"
-            for path in sorted(year_folder.glob("[0-9][0-9]-*.md")):
-                writing = cls.from_path(path, month=settings.month)
-                if writing.date > settings.provided_until:
-                    return result
-                result.setdefault(year, []).append(writing)
+    def get_all_writings(cls, settings: settings_module.Settings) -> Iterator[Writing]:
+        for year_folder in sorted(settings.source_dir.iterdir()):
+            if not year_folder.is_dir():
+                continue
+            try:
+                year = int(year_folder.name)
+            except ValueError, TypeError:
+                continue
+            if not (2000 < year < 3000):
+                continue
+            logger.info(f"Processing year {year}")
 
-        return result
+            if settings.fixed_month:
+                month = settings.fixed_month
+                yield from cls._find_days(
+                    folder=year_folder,
+                    month=settings.fixed_month,
+                    year=year,
+                    month_is_fixed=True,
+                )
+            else:
+                for month_folder in sorted(year_folder.iterdir()):
+                    if not month_folder.is_dir():
+                        continue
+                    try:
+                        month = int(month_folder.name)
+                    except TypeError:
+                        continue
+                    if not (1 < month <= 12):
+                        continue
+                    yield from cls._find_days(
+                        folder=month_folder,
+                        month=month,
+                        year=year,
+                        month_is_fixed=False,
+                    )
 
-    @property
-    def md_path(self) -> pathlib.Path:
-        return self.path("md")
+    @classmethod
+    def _find_days(
+        cls, folder: pathlib.Path, month: int, year: int, month_is_fixed: bool
+    ) -> Iterator[Writing]:
+        for path in sorted(folder.iterdir()):
+            try:
+                writing = cls.from_path(
+                    path, month=month, year=year, month_is_fixed=month_is_fixed
+                )
+            except NotAWriting:
+                continue
+            yield writing
 
     @property
     def html_path(self) -> pathlib.Path:
         return self.path("html")
 
     def path(self, ext: str) -> pathlib.Path:
-        return (
-            pathlib.Path(f"{self.year}")
-            / f"{self.day_number:02}-{self.original_prompt}.{ext}"
-        )
+        path = pathlib.Path(f"{self.year}")
+        if not self.month_is_fixed:
+            path /= f"{self.month:02}"
 
-    @property
-    def day_number(self):
-        return self.date.day
+        return path / f"{self.day_number:02}-{self.original_prompt}.{ext}"
 
-    @property
-    def year(self):
+    @functools.cached_property
+    def year(self) -> int:
         return self.date.year
 
-    @classmethod
-    @functools.cache
-    def days_count_for_month(cls, year: int, month: int) -> int:
-        return calendar.monthrange(year, month)[-1]
+    @functools.cached_property
+    def month(self) -> int:
+        return self.date.month
 
-    @classmethod
-    @functools.cache
-    def first_weekday(cls, year: int, month: int) -> int:
-        return calendar.monthrange(year, month)[0]
+    @functools.cached_property
+    def day_number(self) -> int:
+        return self.date.day
 
     @functools.cached_property
     def markdown_file(self) -> MarkdownFile:
@@ -120,44 +177,50 @@ class Writing:
     def excerpt(self, max_length: int = 200) -> str:
         return utils.excerpt(markdown=self.markdown, max_length=max_length)
 
-    @property
+    @functools.cached_property
     def markdown(self) -> str:
         return self.markdown_file.markdown
 
-    @property
+    @functools.cached_property
     def full_title(self) -> str:
         return self.markdown_file.full_title
 
-    @property
+    @functools.cached_property
     def title_elements(self) -> tuple[str, str]:
         return self.markdown_file.title_elements
 
-    @property
+    @functools.cached_property
     def title(self) -> str:
         return self.markdown_file.title
 
-    @property
+    @functools.cached_property
     def prompts(self) -> Iterable[Prompt]:
-        first = self.first_weekday(year=self.year, month=self.date.month)
+        first = utils.first_weekday(self.year, self.month)
         numbers, titles_str = self.title_elements
         day_numbers = (int(e) for e in numbers.split("&"))
         original_prompts = self.original_prompt.split("-")
         titles = titles_str.split(", ")
+        result: list[Prompt] = []
         for original_prompt, title, day_number in zip(
             original_prompts, titles, day_numbers
         ):
-            yield Prompt(
-                day_number=day_number,
-                color_index=(day_number + first - 1),
-                original_prompt=original_prompt.title(),
-                title=title,
+            result.append(
+                Prompt(
+                    day_number=day_number,
+                    color_index=(day_number + first - 1),
+                    original_prompt=original_prompt.title(),
+                    title=title,
+                )
             )
 
-    def social_preview_filename(self, signature: str) -> str:
-        return str(self.path(f"{signature}.png")).replace("/", "-")
+        return result
+
+    def social_preview_filename(self) -> str:
+        filename = str(self.path("png")).replace("/", "-")
+        return filename
 
 
-type Writings = Mapping[int, Sequence[Writing]]
+type Writings = dict[int, dict[int, list[Writing]]]
 
 
 @pdataclasses.dataclass(kw_only=True)
@@ -165,84 +228,5 @@ class PageMetadata:
     title: str | None
     url_path: str | None
     description: str
-    social_preview_path: pathlib.Path
-    repository_url_path: pathlib.Path
-
-
-@pdataclasses.dataclass(kw_only=True)
-class TextArtifact:
-    path: pathlib.Path
-    contents: str
-
-    def write(self, dir: pathlib.Path):
-        if self.path.is_absolute():
-            raise ValueError("Only relative paths are accepted")
-
-        (dir / self.path).parent.mkdir(exist_ok=True, parents=True)
-        (dir / self.path).write_text(self.contents)
-
-
-@pdataclasses.dataclass(kw_only=True)
-class HTMLArtifact(TextArtifact):
-    @override
-    def write(self, dir: pathlib.Path):
-        super().write(dir=dir)
-
-
-@pdataclasses.dataclass(kw_only=True)
-class BytesArtifact:
-    path: pathlib.Path
-    contents: bytes
-
-    def write(self, dir: pathlib.Path):
-        if self.path.is_absolute():
-            raise ValueError("Only relative paths are accepted")
-
-        (dir / self.path).parent.mkdir(exist_ok=True, parents=True)
-        (dir / self.path).write_bytes(self.contents)
-
-
-@pdataclasses.dataclass(kw_only=True)
-class FeedEntryArtifact:
-    id: str
-    title: str
-    link: str
-    date: datetime.date
-
-
-type Artifact = (
-    TextArtifact | HTMLArtifact | BytesArtifact | FeedEntryArtifact | FileArtifact
-)
-
-
-@pdataclasses.dataclass(kw_only=True)
-class FileArtifact:
-    path: pathlib.Path
-    source: pathlib.Path
-    destination: pathlib.Path
-
-    def write(self, dir: pathlib.Path):
-        rel = self.path.relative_to(self.source)
-        destination = dir / self.destination / rel
-        destination.parent.mkdir(exist_ok=True, parents=True)
-        self.path.copy(destination)
-
-
-@pdataclasses.dataclass(kw_only=True)
-class SocialPreviewContents:
-    """
-    Parameters for generating a social preview PNG.
-    """
-
-    top_line: str
-    title: str
-    description: str
-    logo: pathlib.Path
-    date: str | None  # this might not strictly be a date
-    colors: list[str]
-    body_font_file_woff2: pathlib.Path
-    title_font_file_woff2: pathlib.Path
-
-    @property
-    def signature(self) -> str:
-        return hashlib.md5(str(dataclasses.asdict(self)).encode()).hexdigest()[:8]
+    social_preview_url: str
+    repository_url: str

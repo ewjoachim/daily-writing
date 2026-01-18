@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import itertools
-import pathlib
 from collections.abc import Iterable
 
 import htpy as h
 import markdown
 import markupsafe
+
+from daily_writing import build_context, i18n
 
 from . import models, utils
 from . import settings as settings_module
@@ -21,16 +22,13 @@ page_metadata_context: h.Context[models.PageMetadata] = h.Context("page_metadata
 def layout(
     page_metadata: models.PageMetadata,
     settings: settings_module.Settings,
+    inject_hot_reload_js: bool,
     *,
     children: h.Node,
 ) -> h.Renderable:
-    repository_url = (
-        settings.repository_url.rstrip("/")
-        + "/"
-        + (str(page_metadata.repository_url_path))
-    )
+    repository_url = str(page_metadata.repository_url)
 
-    return h.html(lang=settings.language)[
+    return h.html(lang=i18n.get_bcp47(settings.locale))[
         head(),
         h.body[
             nav(),
@@ -51,7 +49,7 @@ const ws = new WebSocket("ws://127.0.0.1:8000/ws");
 ws.onmessage = () => window.location.reload();
 """)
         ]
-        if settings.inject_hot_reload_js
+        if inject_hot_reload_js
         else None,
         h.script[
             markupsafe.Markup("""
@@ -85,14 +83,19 @@ def head(
                 h.link(
                     rel="stylesheet",
                     type="text/css",
-                    href=f"/{settings.build_static_dir}/{extra_css}?{utils.cache_bust()}",
+                    href=f"{settings.build_static_path}{extra_css}?{utils.cache_bust()}",
                 )
                 for extra_css in settings.extra_css
             ],
             h.link(
                 rel="stylesheet",
                 type="text/css",
-                href=f"/{settings.build_static_dir}/style.css?{utils.cache_bust()}",
+                href=f"{settings.build_static_path}style.css?{utils.cache_bust()}",
+            ),
+            h.link(
+                rel="stylesheet",
+                type="text/css",
+                href=f"{settings.build_static_path}fonts.css?{utils.cache_bust()}",
             ),
             favicons(),
             h.link(
@@ -101,19 +104,6 @@ def head(
                 title="Atom",
                 href=f"{settings.base_url / settings.atom_path}",
             ),
-            h.style[
-                markupsafe.Markup(f"""
-body {{
-    font-family: {", ".join(f'"{f}"' for f in settings.body_font_family)};
-}}
-
-h1,
-h2,
-h3,
-h4 {{
-    font-family: {", ".join(f'"{f}"' for f in settings.title_font_family)};
-}}""")
-            ],
         ],
     )
 
@@ -140,7 +130,7 @@ def social_preview_meta(
     page_metadata: models.PageMetadata,
 ):
     url = f"{settings.base_url}/{page_metadata.url_path or ''}"
-    image = f"{settings.base_url}/{page_metadata.social_preview_path}"
+    image = f"{settings.base_url}/{page_metadata.social_preview_url}"
     return [
         h.meta(property="og:title", content=page_metadata.title),
         h.meta(property="og:type", content="website"),
@@ -154,7 +144,7 @@ def social_preview_meta(
         h.meta(property="og:image:height", content=f"{settings.social_preview_height}"),
         h.meta(
             property="og:image",
-            content=f"{settings.base_url}/{page_metadata.social_preview_path}",
+            content=f"{settings.base_url}/{page_metadata.social_preview_url}",
         ),
         h.meta(
             property="og:image:alt",
@@ -173,7 +163,11 @@ def nav(settings: settings_module.Settings, writings: models.Writings) -> h.Node
     return h.div("#menu.closed")[
         h.nav(role="navigation", aria_label="Main")[
             h.h4[h.a(href="/")[settings.site_name]],
-            (nav_year(year=year) for year in sorted(writings, reverse=True)),
+            (
+                nav_month(year=year, month=month)
+                for year, writings_months in sorted(writings.items(), reverse=True)
+                for month in sorted(writings_months, reverse=True)
+            ),
         ],
     ]
 
@@ -211,21 +205,25 @@ def empty_day() -> h.Node:
 
 @settings_context.consumer
 @writings_context.consumer
-def nav_year(
-    writings: models.Writings, settings: settings_module.Settings, *, year: int
+def nav_month(
+    writings: models.Writings,
+    settings: settings_module.Settings,
+    *,
+    year: int,
+    month: int,
 ) -> h.Node:
     return [
-        h.h4(".year")[
-            h.a(f"#year-{year}")[f"{settings.month_name.capitalize()} {year}"]
+        h.h4(".month")[
+            h.a(f"#month-{year}-{month}")[
+                i18n.month_date(year=year, month=month, locale=settings.locale)
+            ]
         ],
-        h.div(".toc-year")[
+        h.div(".toc-month")[
+            (empty_day() for _ in range(utils.first_weekday(year, month))),
             (
-                empty_day()
-                for _ in range(
-                    models.Writing.first_weekday(year=year, month=settings.month)
-                )
+                nav_day(writing=writing, settings=settings)
+                for writing in writings[year][month]
             ),
-            (nav_day(writing=writing, settings=settings) for writing in writings[year]),
         ],
     ]
 
@@ -296,10 +294,12 @@ def linear_gradient(colors: list[str]) -> str:
 
 
 def writing_page(
+    *,
     settings: settings_module.Settings,
+    context: build_context.BuildContext,
     writings: models.Writings,
     writing: models.Writing,
-    social_preview_path: pathlib.Path,
+    social_preview_url: str,
     colors: list[str],
 ) -> h.Renderable:
     border_color = linear_gradient(colors=colors)
@@ -308,16 +308,24 @@ def writing_page(
         title=writing.title,
         url_path=str(writing.html_path),
         description=writing.excerpt(),
-        social_preview_path=social_preview_path,
-        repository_url_path=utils.get_github_path_for_file(writing.md_path),
+        social_preview_url=social_preview_url,
+        repository_url=utils.get_repository_url_for_file(
+            repository_url=settings.repository_url,
+            repository_file_url_prefix=settings.repository_file_url_prefix,
+            file=writing.md_path,
+        ),
     )
     links = []
-    if prev_writing := utils.get_prev(obj=writing, iterable=writings[writing.year]):
+    if prev_writing := utils.get_prev(
+        obj=writing, iterable=writings[writing.year][writing.month]
+    ):
         links.append(nav_day(writing=prev_writing, settings=settings))
     else:
         links.append(empty_day())
 
-    if next_writing := utils.get_next(obj=writing, iterable=writings[writing.year]):
+    if next_writing := utils.get_next(
+        obj=writing, iterable=writings[writing.year][writing.month]
+    ):
         links.append(nav_day(writing=next_writing, settings=settings))
     else:
         links.append(empty_day())
@@ -329,6 +337,7 @@ def writing_page(
             page_metadata_context.provider(
                 page_metadata,
                 layout(
+                    inject_hot_reload_js=context.inject_hot_reload_js,
                     children=[
                         h.div(".markdown-block")[
                             h.div(
@@ -355,10 +364,12 @@ def writing_page(
 
 
 def index_page(
+    *,
     settings: settings_module.Settings,
+    context: build_context.BuildContext,
     writings: models.Writings,
     markdown_file: models.MarkdownFile,
-    social_preview_path: pathlib.Path,
+    social_preview_url: str,
     colors: list[str],
 ) -> h.Renderable:
     border_color = linear_gradient(colors=colors)
@@ -366,8 +377,12 @@ def index_page(
         title=settings.site_name,
         url_path="/",
         description=markdown_file.excerpt(),
-        social_preview_path=social_preview_path,
-        repository_url_path=utils.get_github_path_for_file(markdown_file.md_path),
+        social_preview_url=social_preview_url,
+        repository_url=utils.get_repository_url_for_file(
+            repository_url=settings.repository_url,
+            repository_file_url_prefix=settings.repository_file_url_prefix,
+            file=markdown_file.md_path,
+        ),
     )
 
     return settings_context.provider(
@@ -377,6 +392,7 @@ def index_page(
             page_metadata_context.provider(
                 page_metadata,
                 layout(
+                    inject_hot_reload_js=context.inject_hot_reload_js,
                     children=[
                         h.div(".markdown-block")[
                             h.div(
@@ -394,15 +410,22 @@ def index_page(
                                 ),
                             ],
                         ],
-                        h.div("#year-links")[
+                        h.div("#month-links")[
                             (
                                 h.h4[
                                     h.a(
-                                        href=f"#year-{year}",
+                                        href=f"#month-{year}-{month}",
                                         onclick="""toggleMenu()""",
-                                    )[f"{settings.month_name.capitalize()} {year}"]
+                                    )[
+                                        i18n.month_date(
+                                            year=year,
+                                            month=month,
+                                            locale=settings.locale,
+                                        )
+                                    ]
                                 ]
-                                for year in writings
+                                for year, months in writings.items()
+                                for month in months
                             )
                         ],
                     ],

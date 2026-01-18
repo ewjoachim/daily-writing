@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import logging
 import pathlib
 from typing import Any, override
 
@@ -9,8 +10,12 @@ import uvicorn
 import watchfiles
 import watchfiles.main
 
+from daily_writing import build_context
+
 from . import build
 from . import settings as settings_module
+
+logger = logging.getLogger("daily_writing")
 
 
 def serve(settings: settings_module.Settings):
@@ -54,7 +59,7 @@ async def serve_async(settings: settings_module.Settings):
             str(pathlib.Path(f[1]).relative_to(pathlib.Path.cwd()))
             for f in file_changes
         )
-        print(f"Reloading ({', '.join(change_paths)})")
+        logger.info(f"Reloading ({', '.join(change_paths)})")
         reload_event.set()
 
     # When the shutdown of the server is requested, we set an event that stops all the
@@ -68,7 +73,7 @@ async def serve_async(settings: settings_module.Settings):
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, workers=1)
     server = ShutdownServer(config)
 
-    settings.inject_hot_reload_js = True
+    context = build_context.BuildContext(inject_hot_reload_js=True)
 
     try:
         await asyncio.gather(
@@ -78,7 +83,9 @@ async def serve_async(settings: settings_module.Settings):
                 watch_filter=watchfiles.DefaultFilter(
                     ignore_paths=[settings.build_dir.absolute()]
                 ),
-                target=functools.partial(build.build, settings=settings),
+                target=functools.partial(
+                    build.build, settings=settings, context=context
+                ),
                 target_type="function",
                 callback=ping_websocket,
             ),

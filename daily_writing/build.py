@@ -5,17 +5,31 @@ import shutil
 import urllib.parse
 from collections.abc import Iterable
 
-from . import atom, html, models, social_preview
+from daily_writing import artifacts, build_context
+
+from . import atom, fonts, html, i18n, models, social_preview
 from . import settings as settings_module
 
+type Artifact = (
+    artifacts.TextArtifact
+    | artifacts.HTMLArtifact
+    | artifacts.BytesArtifact
+    | atom.FeedEntryArtifact
+    | artifacts.FileArtifact
+)
 
-def build(settings: settings_module.Settings):
+
+def build(
+    settings: settings_module.Settings,
+    context: build_context.BuildContext | None = None,
+):
     if settings.build_dir.exists():
         shutil.rmtree(settings.build_dir)
 
+    context = context or build_context.BuildContext()
     feed = atom.Feed(settings=settings)
-    for artifact in get_artifacts(settings=settings):
-        if isinstance(artifact, models.FeedEntryArtifact):
+    for artifact in get_artifacts(settings=settings, context=context):
+        if isinstance(artifact, atom.FeedEntryArtifact):
             feed.add_entry(
                 id=artifact.id,
                 title=artifact.title,
@@ -27,23 +41,42 @@ def build(settings: settings_module.Settings):
     feed.get_artifact().write(dir=settings.build_dir)
 
 
-def get_artifacts(settings: settings_module.Settings) -> Iterable[models.Artifact]:
-    writings = models.Writing.get_all(settings=settings)
-    yield from index_artifacts(settings=settings, writings=writings)
+def get_artifacts(
+    settings: settings_module.Settings, context: build_context.BuildContext
+) -> Iterable[Artifact]:
+    font_files = fonts.get_all_font_files(settings=settings)
+    yield from font_files.artifacts
+    all_writings = list(
+        writing
+        for writing in models.Writing.get_all_writings(settings=settings)
+        if writing.date <= settings.max_date
+    )
+    writings: models.Writings = {}
+    for writing in all_writings:
+        writings.setdefault(writing.year, {}).setdefault(writing.month, []).append(
+            writing
+        )
+
+    yield from index_artifacts(
+        settings=settings, context=context, writings=writings, font_files=font_files
+    )
     yield from static_artifacts(settings=settings)
-    for year_writings in writings.values():
-        for writing in year_writings:
-            yield from writing_artifacts(
-                settings=settings, writings=writings, writing=writing
-            )
+    for writing in all_writings:
+        yield from writing_artifacts(
+            settings=settings,
+            context=context,
+            writings=writings,
+            writing=writing,
+            font_files=font_files,
+        )
 
 
-def static_artifacts(settings: settings_module.Settings) -> Iterable[models.Artifact]:
+def static_artifacts(settings: settings_module.Settings) -> Iterable[Artifact]:
     framework_static = pathlib.Path(__file__).parent / "static"
     project_static = settings.source_dir / settings.source_static_dir
 
     yield from [
-        models.FileArtifact(
+        artifacts.FileArtifact(
             path=p, source=source, destination=settings.build_static_dir
         )
         for source in [framework_static, project_static]
@@ -53,48 +86,51 @@ def static_artifacts(settings: settings_module.Settings) -> Iterable[models.Arti
 
 def writing_artifacts(
     settings: settings_module.Settings,
+    context: build_context.BuildContext,
     writings: models.Writings,
     writing: models.Writing,
-) -> Iterable[models.Artifact]:
+    font_files: fonts.FontFiles,
+) -> Iterable[Artifact]:
     top_line = [
         urllib.parse.urlparse(settings.base_url).hostname or "",
         settings.site_name,
     ]
     colors = [settings.color_cycle[prompt.color_index] for prompt in writing.prompts]
-    social_preview_contents = models.SocialPreviewContents(
+
+    social_preview_contents = social_preview.SocialPreviewContents(
         top_line=" — ".join(top_line),
         title=writing.title,
         description=writing.excerpt(),
         logo=settings.source_static_dir / settings.logo,
-        date=french_dates(writing=writing, month_name=settings.month_name),
+        date=i18n.full_date(date=writing.date, locale=settings.locale),
         colors=colors,
-        body_font_file_woff2=settings.source_static_dir / settings.body_font_file_woff2,
-        title_font_file_woff2=settings.source_static_dir
-        / settings.title_font_file_woff2,
+        body_font=font_files.body_font,
+        title_font=font_files.title_font,
     )
-    filename = writing.social_preview_filename(
-        signature=social_preview_contents.signature
-    )
-    social_preview_path = settings.social_preview_path / filename
+    social_preview_filename = writing.social_preview_filename()
+    social_preview_path = settings.social_preview_path / social_preview_filename
 
     renderable = html.writing_page(
         settings=settings,
+        context=context,
         writings=writings,
         writing=writing,
-        social_preview_path=social_preview_path,
+        social_preview_url=get_social_preview_url(
+            path=social_preview_path, signature=social_preview_contents.signature
+        ),
         colors=colors,
     )
 
     link = f"{settings.base_url}/{writing.html_path}"
 
     return [
-        models.FeedEntryArtifact(
+        atom.FeedEntryArtifact(
             id=writing.date.isoformat(),
             title=writing.full_title,
             link=link,
             date=writing.date,
         ),
-        models.HTMLArtifact(path=writing.html_path, contents=str(renderable)),
+        artifacts.HTMLArtifact(path=writing.html_path, contents=str(renderable)),
         social_preview_artifact(
             contents=social_preview_contents, path=social_preview_path
         ),
@@ -102,22 +138,24 @@ def writing_artifacts(
 
 
 def index_artifacts(
-    settings: settings_module.Settings, writings: models.Writings
-) -> Iterable[models.Artifact]:
+    settings: settings_module.Settings,
+    context: build_context.BuildContext,
+    writings: models.Writings,
+    font_files: fonts.FontFiles,
+) -> Iterable[Artifact]:
     # Diagonal through the rectangle of colors
     colors = settings.index_colors
-    social_preview_contents = models.SocialPreviewContents(
+    social_preview_contents = social_preview.SocialPreviewContents(
         top_line=urllib.parse.urlparse(settings.base_url).hostname or "",
         title=settings.site_name,
         description=settings.description,
         logo=settings.source_static_dir / settings.logo,
         date=None,
         colors=colors,
-        body_font_file_woff2=settings.source_static_dir / settings.body_font_file_woff2,
-        title_font_file_woff2=settings.source_static_dir
-        / settings.title_font_file_woff2,
+        body_font=font_files.body_font,
+        title_font=font_files.title_font,
     )
-    filename = f"index.{social_preview_contents.signature}.png"
+    filename = "index.png"
 
     social_preview_path = settings.social_preview_path / filename
 
@@ -125,30 +163,32 @@ def index_artifacts(
 
     renderable = html.index_page(
         settings=settings,
+        context=context,
         writings=writings,
         markdown_file=markdown_file,
-        social_preview_path=social_preview_path,
+        social_preview_url=get_social_preview_url(
+            path=social_preview_path, signature=social_preview_contents.signature
+        ),
         colors=colors,
     )
 
     return [
-        models.HTMLArtifact(path=pathlib.Path("index.html"), contents=str(renderable)),
+        artifacts.HTMLArtifact(
+            path=pathlib.Path("index.html"), contents=str(renderable)
+        ),
         social_preview_artifact(
             contents=social_preview_contents, path=social_preview_path
         ),
     ]
 
 
+def get_social_preview_url(path: pathlib.Path, signature: str) -> str:
+    return f"{path}?hash={signature}"
+
+
 def social_preview_artifact(
-    contents: models.SocialPreviewContents, path: pathlib.Path
-) -> models.BytesArtifact:
+    contents: social_preview.SocialPreviewContents, path: pathlib.Path
+) -> artifacts.BytesArtifact:
     image_bytes = social_preview.generate_social_preview(contents=contents)
 
-    return models.BytesArtifact(path=path, contents=image_bytes.getvalue())
-
-
-# One of the few, if not the only place where French is baked in the system.
-def french_dates(writing: models.Writing | None, month_name: str) -> str | None:
-    if not writing:
-        return None
-    return f"{'&'.join(str(p.day_number) for p in writing.prompts)} {month_name} {writing.year}"
+    return artifacts.BytesArtifact(path=path, contents=image_bytes)
