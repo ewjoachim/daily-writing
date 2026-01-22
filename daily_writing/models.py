@@ -88,8 +88,26 @@ class Writing:
             day = int(match.group("day_number"))
             original_prompt = match.group("title")
 
-        prompts
+        first = utils.first_weekday(year, month)
+        numbers, titles_str = self.title_elements
+        day_numbers = (int(e) for e in numbers.split("&"))
+        original_prompts = self.original_prompt.split("-")
+        titles = titles_str.split(", ")
+        prompts: list[Prompt] = []
+        for original_prompt, title, day_number in zip(
+            original_prompts, titles, day_numbers, strict=False
+        ):
+            prompts.append(
+                Prompt(
+                    day_number=day_number,
+                    color_index=(day_number + first - 1),
+                    original_prompt=original_prompt.title(),
+                    title=title,
+                )
+            )
+
         return cls(
+            path=path,
             date=datetime.date(year, month, day),
             original_prompt=original_prompt,
             month_is_fixed=month_is_fixed,
@@ -151,12 +169,8 @@ class Writing:
     def html_path(self) -> pathlib.Path:
         return self.path("html")
 
-    def path(self, ext: str) -> pathlib.Path:
-        path = pathlib.Path(f"{self.year}")
-        if not self.month_is_fixed:
-            path /= f"{self.month:02}"
-
-        return path / f"{self.day_number:02}-{self.original_prompt}.{ext}"
+    def get_path_with_ext(self, ext: str) -> pathlib.Path:
+        self.path.with_suffix(ext)
 
     @functools.cached_property
     def year(self) -> int:
@@ -192,28 +206,6 @@ class Writing:
     @functools.cached_property
     def title(self) -> str:
         return self.markdown_file.title
-
-    @functools.cached_property
-    def prompts(self) -> Iterable[Prompt]:
-        first = utils.first_weekday(self.year, self.month)
-        numbers, titles_str = self.title_elements
-        day_numbers = (int(e) for e in numbers.split("&"))
-        original_prompts = self.original_prompt.split("-")
-        titles = titles_str.split(", ")
-        result: list[Prompt] = []
-        for original_prompt, title, day_number in zip(
-            original_prompts, titles, day_numbers
-        ):
-            result.append(
-                Prompt(
-                    day_number=day_number,
-                    color_index=(day_number + first - 1),
-                    original_prompt=original_prompt.title(),
-                    title=title,
-                )
-            )
-
-        return result
 
     def social_preview_filename(self) -> str:
         filename = str(self.path("png")).replace("/", "-")
