@@ -22,7 +22,7 @@ dependencies = [
     # Social cards:
     "brotli>=1.1.0", # for fonts
     "fonttools>=4.60.1",
-    "pillow>=11.3.0",
+    "pillow>=12.2.0",
     "numpy>=2.3.4",
     # RSS:
     "feedgen>=1.0.0",
