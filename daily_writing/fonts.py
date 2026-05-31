@@ -5,7 +5,6 @@ import functools
 import io
 import pathlib
 import sys
-import zipfile
 from collections.abc import Iterable, Iterator
 from typing import Literal
 
@@ -140,12 +139,27 @@ def search_download_font_from_github(
         )
 
 
+class FontException(Exception):
+    pass
+
+
+class CouldNotExtractFontName(FontException):
+    pass
+
+
+class CouldNotExtractFontWeight(FontException):
+    pass
+
+
 def get_font_descriptor(font_bytes: io.BytesIO) -> FontDescriptor:
     font_obj = get_font_obj(font_bytes)
+    font_name = get_font_name(font_obj)
+    if not font_name:
+        raise CouldNotExtractFontName
     return FontDescriptor(
         contents=font_bytes,
         style=get_font_style(font_obj),
-        name=get_font_name(font_obj),
+        name=font_name,
     )
 
 
@@ -155,35 +169,22 @@ def get_font_obj(font_bytes: io.BytesIO) -> fontTools.ttLib.TTFont:
     return fontTools.ttLib.TTFont(font_bytes)
 
 
-def get_font_name(font: fontTools.ttLib.TTFont) -> str:
+def get_font_name(font: fontTools.ttLib.TTFont) -> str | None:
     return font["name"].getBestFamilyName()
-
-
-def get_font_weight(font: fontTools.ttLib.TTFont) -> str:
-    """
-    Detects weight. Handles Variable Fonts (fvar) and Static Fonts (OS/2).
-    Returns a string suitable for CSS (e.g. "400" or "100 900").
-    """
-    if fvar := font.get("fvar"):
-        for axis in fvar.axes:
-            if axis.axisTag == "wght":
-                return f"{int(axis.minValue)} {int(axis.maxValue)}"
-
-    return str(font["OS/2"].usWeightClass)
 
 
 def get_font_style(font: fontTools.ttLib.TTFont) -> FontStyle:
     # Check OS/2 table fsSelection (Bit 0 is Italic)
     # We use bitwise AND to check if the bit is set
     try:
-        if font["OS/2"].fsSelection & 0b1:
+        if font["OS/2"].fsSelection & 0b1:  # pyright: ignore[reportAttributeAccessIssue]
             return "italic"
     except KeyError:
         pass  # Table might be missing in very old fonts
 
     # Check head table macStyle (Bit 1 is Italic)
     try:
-        if font["head"].macStyle & 0b10:
+        if font["head"].macStyle & 0b10:  # pyright: ignore[reportAttributeAccessIssue]
             return "italic"
     except KeyError:
         pass
@@ -191,7 +192,7 @@ def get_font_style(font: fontTools.ttLib.TTFont) -> FontStyle:
     # Check post table italicAngle (usually non-zero for italics)
     # This is a fallback; some "upright italics" might have 0 angle.
     try:
-        if font["post"].italicAngle != 0:
+        if font["post"].italicAngle != 0:  # pyright: ignore[reportAttributeAccessIssue]
             return "italic"
     except KeyError:
         pass
@@ -239,18 +240,23 @@ def get_font_supported_unicodes(font_obj: TTFont) -> set[int]:
 def get_font_metadata(font_obj: fontTools.ttLib.TTFont) -> tuple[str, str]:
     """Extracts weight and family name from the TTF file."""
     # Check for Variable Font 'fvar' table
+    weight = None
     if "fvar" in font_obj:
         # accessing the 'fvar' table returns an object that has an 'axes' attribute
         fvar = font_obj["fvar"]
-        for axis in fvar.axes:
+        for axis in fvar.axes:  # pyright: ignore[reportUnknownVariableType]
             if axis.axisTag == "wght":
-                weight = f"{int(axis.minValue)} {int(axis.maxValue)}"
+                weight = f"{int(axis.minValue)} {int(axis.maxValue)}"  # pyright: ignore[reportUnknownArgumentType]
     else:
         # Get weight from OS/2 table
-        weight = str(font_obj["OS/2"].usWeightClass)
+        weight = str(font_obj["OS/2"].usWeightClass)  # pyright: ignore[reportUnknownArgumentType, reportAttributeAccessIssue]
 
     # Get family name from name table (ID 1 is Font Family)
     family_name = font_obj["name"].getBestFamilyName()
+    if not family_name:
+        raise CouldNotExtractFontName
+    if not weight:
+        raise CouldNotExtractFontWeight
 
     return family_name, weight
 
@@ -293,7 +299,7 @@ def process_font(
         style_suffix = "-italic" if font_descriptor.style == "italic" else ""
         filename = f"{font_descriptor.name}{style_suffix}-{subset_name}.{font_format}"
 
-        unicode_subset: set[int] = set.union(*(r.to_set() for r in char_ranges))
+        unicode_subset: set[int] = set.union(*(r.to_set() for r in char_ranges))  # pyright: ignore[reportUnknownVariableType]
         unicode_subset &= supported_unicode
 
         font_path = static_path / filename

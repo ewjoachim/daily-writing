@@ -7,31 +7,26 @@ repos:
     rev: v6.0.0
     hooks:
       # File names
-      - id: check-case-conflict
-          # File formats
+      - id: check-case-conflict # File formats
       - id: pretty-format-json
       - id: check-json
       - id: check-toml
-      - id: check-yaml
-          # Executables
+      - id: check-yaml # Executables
       - id: check-executables-have-shebangs
-      - id: check-shebang-scripts-are-executable
-          # Git shenanigans
+      - id: check-shebang-scripts-are-executable # Git shenanigans
       - id: check-merge-conflict
-      - id: check-added-large-files
-          # Python issues
+      - id: check-added-large-files # Python issues
       - id: check-ast
-      - id: debug-statements
-          # Whitespace
+      - id: debug-statements # Whitespace
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: mixed-line-ending
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.8
+    rev: v0.15.12
     hooks:
-      - id: ruff
-        args: [--fix, --unsafe-fixes, --show-fixes]
+      - id: ruff-check
+        args: [ --fix, --unsafe-fixes, --show-fixes ]
       - id: ruff-format
 
   - repo: https://github.com/ewjoachim/sync-pre-commit-with-uv
@@ -43,3 +38,8 @@ repos:
     rev: 0.8.13
     hooks:
       - id: uv-lock
+
+  - repo: https://github.com/DetachHead/basedpyright-prek-mirror
+    rev: 1.39.3
+    hooks:
+      - id: basedpyright

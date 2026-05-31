@@ -13,19 +13,19 @@ class TextArtifact:
     path: pathlib.Path
     contents: str
 
-    def write(self, dir: pathlib.Path):
+    def write(self, destination: pathlib.Path):
         if self.path.is_absolute():
             raise ValueError("Only relative paths are accepted")
 
-        (dir / self.path).parent.mkdir(exist_ok=True, parents=True)
-        (dir / self.path).write_text(self.contents)
+        (destination / self.path).parent.mkdir(exist_ok=True, parents=True)
+        (destination / self.path).write_text(self.contents)
 
 
 @pdataclasses.dataclass(kw_only=True)
 class HTMLArtifact(TextArtifact):
     @override
-    def write(self, dir: pathlib.Path):
-        super().write(dir=dir)
+    def write(self, destination: pathlib.Path):
+        super().write(destination=destination)
 
 
 @pdataclasses.dataclass(
@@ -35,12 +35,12 @@ class BytesArtifact:
     path: pathlib.Path
     contents: io.BytesIO
 
-    def write(self, dir: pathlib.Path):
+    def write(self, destination: pathlib.Path):
         if self.path.is_absolute():
             raise ValueError("Only relative paths are accepted")
 
-        (dir / self.path).parent.mkdir(exist_ok=True, parents=True)
-        (dir / self.path).write_bytes(self.contents.getvalue())
+        (destination / self.path).parent.mkdir(exist_ok=True, parents=True)
+        (destination / self.path).write_bytes(self.contents.getvalue())
 
 
 @pdataclasses.dataclass(kw_only=True)
@@ -49,8 +49,8 @@ class FileArtifact:
     source: pathlib.Path
     destination: pathlib.Path
 
-    def write(self, dir: pathlib.Path):
+    def write(self, destination: pathlib.Path):
         rel = self.path.relative_to(self.source)
-        destination = dir / self.destination / rel
+        destination = destination / self.destination / rel
         destination.parent.mkdir(exist_ok=True, parents=True)
         self.path.copy(destination)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import enum
 import os
 import pathlib
 import zoneinfo
@@ -36,7 +37,22 @@ class Build(pydantic.BaseModel):
 
 
 class Serve(pydantic.BaseModel):
-    pass
+    additional_paths: Annotated[
+        set[pydantic.DirectoryPath | pydantic.FilePath],
+        pydantic.Field(description="Additional paths on which to use autoreload"),
+    ] = set()
+
+
+class Normalize(pydantic.BaseModel):
+    paths: Annotated[
+        pydantic_settings.CliPositionalArg[set[pydantic.FilePath]],
+        pydantic.Field(description="Files to normalize"),
+    ] = set()
+
+    rewrite: Annotated[
+        bool,
+        pydantic.Field(description="If set, overwrites existing front-matters"),
+    ] = False
 
 
 type GenericFont = Literal["serif", "sans-serif"]
@@ -50,6 +66,16 @@ def validate_locale(value: Any) -> Any:
         return i18n.Locale.from_string(value)
     except i18n.LocaleError as exc:
         raise pydantic.ValidationError(str(exc)) from exc
+
+
+class DayOfWeek(enum.IntEnum):
+    Monday = 0
+    Tuesday = 1
+    Wednesday = 2
+    Thursday = 3
+    Friday = 4
+    Saturday = 5
+    Sunday = 6
 
 
 class Settings(
@@ -130,6 +156,16 @@ class Settings(
             description="Website language (used for the HTML declaration and the location of dates). Format: BCP47 (e.g. en-US)"
         ),
     ]
+    repository_link_name: Annotated[
+        str,
+        pydantic.Field(
+            description="Text of the link to the corresponding repositry page in the footer"
+        ),
+    ] = "GitHub"
+    feed_name: Annotated[
+        str,
+        pydantic.Field(description="Text of the link to the RSS feed in the footer"),
+    ] = "RSS"
 
     timezone: Annotated[
         str,
@@ -137,12 +173,12 @@ class Settings(
             description="Name of the timezone (used to determine midnight, which controls when new writings appear for the current day)"
         ),
     ] = LOCAL_TIMEZONE
-    fixed_month: Annotated[
-        int | None,
+    first_day_of_week: Annotated[
+        DayOfWeek,
         pydantic.Field(
-            description="In case your daily writing challenge is only for a single month in the year, specify the month number. Otherwise leave empty."
+            description="Determines the first day of the week for the calendar display."
         ),
-    ] = None
+    ] = DayOfWeek.Monday
 
     # URLs
     base_url: Annotated[
@@ -256,6 +292,19 @@ class Settings(
             description="Start a local server that rebuilds the server on every change, with hot reload"
         ),
     ]
+    normalize: Annotated[
+        pydantic_settings.CliSubCommand[Normalize],
+        pydantic.Field(
+            description="Add frontmatter to writings that don't have it, extracting metadata from filename and content"
+        ),
+    ]
+
+    verbosity: Annotated[
+        Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
+        pydantic.Field(
+            description="Verbosity level (0=Critical, 1=Error, 2=Warning, 3=Info, 4=debug)"
+        ),
+    ] = "INFO"
 
     @property
     def build_static_path(self) -> str:
@@ -269,8 +318,8 @@ class Settings(
         return ColorCycle(colors=self.colors)
 
     @property
-    def subcommand(self) -> Build | Serve | None:
-        return pydantic_settings.get_subcommand(self)
+    def subcommand(self) -> Build | Serve | Normalize | None:
+        return pydantic_settings.get_subcommand(self)  # pyright: ignore[reportReturnType]
 
     @override
     @classmethod
@@ -282,12 +331,13 @@ class Settings(
         dotenv_settings: pydantic_settings.PydanticBaseSettingsSource,
         file_secret_settings: pydantic_settings.PydanticBaseSettingsSource,
     ) -> tuple[pydantic_settings.PydanticBaseSettingsSource, ...]:
-        return (
+        return (  # pyright: ignore[reportUnknownVariableType]
             init_settings,
             pydantic_settings.CliSettingsSource(
                 settings_cls,
                 cli_parse_args=True,
                 cli_kebab_case=True,
+                cli_implicit_flags=True,
             ),
             env_settings,
             pydantic_settings.TomlConfigSettingsSource(

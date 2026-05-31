@@ -23,9 +23,12 @@ class Locale:
             raise LocaleError(str(exc)) from exc
 
 
-def full_date(date: datetime.date, locale: Locale | None) -> str:
-    return babel.dates.format_date(
-        date=date, format="long", locale=locale.locale if locale else None
+def full_date(dates: list[datetime.date], locale: Locale | None) -> str:
+    return ", ".join(
+        babel.dates.format_date(
+            date=date, format="long", locale=locale.locale if locale else None
+        )
+        for date in dates
     )
 
 

@@ -23,10 +23,14 @@ def serve(settings: settings_module.Settings):
 
 
 async def serve_async(settings: settings_module.Settings):
+    if not settings.serve:
+        raise NotImplementedError()
+
     reload_event = asyncio.Event()
     stop_event = asyncio.Event()
 
     app = fastapi.FastAPI()
+    settings.base_url = ""
 
     async def websocket_endpoint(
         websocket: fastapi.WebSocket,
@@ -56,7 +60,7 @@ async def serve_async(settings: settings_module.Settings):
 
     async def ping_websocket(file_changes: set[watchfiles.main.FileChange]) -> None:
         change_paths = sorted(
-            str(pathlib.Path(f[1]).relative_to(pathlib.Path.cwd()))
+            str(pathlib.Path(f[1]).relative_to(pathlib.Path.cwd(), walk_up=True))
             for f in file_changes
         )
         logger.info(f"Reloading ({', '.join(change_paths)})")
@@ -70,7 +74,7 @@ async def serve_async(settings: settings_module.Settings):
             stop_event.set()
             await super().shutdown(*args, **kwargs)
 
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000, workers=1)
+    config = uvicorn.Config(app, host="127.0.0.1", port=8000, workers=1)
     server = ShutdownServer(config)
 
     context = build_context.BuildContext(inject_hot_reload_js=True)
@@ -80,6 +84,7 @@ async def serve_async(settings: settings_module.Settings):
             server.serve(),
             watchfiles.arun_process(
                 ".",
+                *settings.serve.additional_paths,
                 watch_filter=watchfiles.DefaultFilter(
                     ignore_paths=[settings.build_dir.absolute()]
                 ),

@@ -9,7 +9,7 @@ import logging
 import pathlib
 import textwrap
 
-import fontTools.ttLib.woff2  # pyright: ignore[reportMissingTypeStubs]
+import fontTools.ttLib.woff2
 import numpy as np
 import pydantic
 from PIL import Image, ImageDraw, ImageFont

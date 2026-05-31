@@ -4,9 +4,40 @@ This repo hosts an open source project that let you create a website presenting
 daily writings, it was created with challenges like Writober or Writever in mind, but
 it's not tied to a specific challenge.
 
-Daily Writing mainly turns a bunch of markdown files (one per writing, one per day), a
-configuration file, and a directory of static files into a static HTML website that can
-be deployed.
+Daily Writing mainly turns a bunch of markdown files (one per writing, at most one per
+day), a configuration file, and a directory of static files into a static HTML website
+that can be deployed.
+
+Daily Writing offers various features, such as:
+- A page for each writing and a homepage. A menu displaying a calendar with all the
+  writing for all months.
+- Each day is linked to a "prompt" (as in writever/writober prompt), and can have a
+  title distinct from the prompt.
+- A given writing can span over multiple days (e.g. if you're late), and the calendar
+  will reflect that. Those days may even be non-consecutive.
+- Each day in a month is linked to a unique color, and the calendar is colored
+  accordingly. The homepage displays all the month's colors.
+- Posts can be written in advance and will only be published of their date.
+- Links to the previous and next writings, for binge-reading.
+- Most metadata can be extracted from the name of the file and the writing markdown
+  title, but can then be normalized to frontmatter. Having a frontmatter can help when
+  using a CMS editor (see below).
+- Writings spanning multiple days will have a gradient between the colors of the days.
+- A RSS feed.
+- Nice preview images when you post links to social networks.
+- Discreet links to the GitHub source of each writing, to ease online edition or typo
+  reporting.
+- Privacy-minded Google fonts, downloaded and optimized at build time so that you can
+  get various fonts without offering your reader's data to Google (damn, that was a
+  mess to code)
+- Dark mode. No light mode. Contributions welcome on that.
+- Support for extra custom CSS. If you want to add a light mode but just for yourself.
+- Support of various locales, for date formats. Apart from dates and numbers, all the
+  words that appear on the interface are configurable, so technically, we support all
+  languages that Unicode supports.
+
+Author's personal undying love of handcrafted open source and meticulous yak shaving
+went into this project. He likes to think that it shows.
 
 ## An example:
 
@@ -15,10 +46,16 @@ using this project.
 
 ## Installation
 
-- Create a repository
-- Add a configuration file and your markdown (see below)
-- Configure CI and CD (see below)
+### Github
+
+- [Create a repository from the template](https://repo.new?template_name=daily-writing-template&template_owner=ewjoachim)
+- Adjust configuration with your details
+- Your repository is deployed through GitHub actions (`https://<username>.github.io/<repo name>`)
 - Write your stories
+
+### Elsewhere
+
+(Feel free to contribute installation instructions for other platforms).
 
 ## Configuration
 
