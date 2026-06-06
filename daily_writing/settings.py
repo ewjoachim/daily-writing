@@ -25,7 +25,7 @@ class ColorCycle(pydantic.BaseModel):
     colors: list[pydantic_extra_types.color.Color]
 
     def __getitem__(self, i: int) -> str:
-        return self.colors[i % len(self.colors)].as_hex(format="long")
+        return hex_color(self.colors[i % len(self.colors)])
 
 
 LOCAL_TIMEZONE = tzlocal.get_localzone().key
@@ -223,7 +223,7 @@ class Settings(
         ),
     ]
     index_colors: Annotated[
-        list[str],
+        list[pydantic_extra_types.color.Color],
         pydantic.Field(
             description="The index page will have a color bar containing a gradient of the colors defined here from top to bottom."
         ),
@@ -334,6 +334,10 @@ class Settings(
         return ColorCycle(colors=self.colors)
 
     @property
+    def index_colors_hex(self) -> list[str]:
+        return [hex_color(c) for c in self.index_colors]
+
+    @property
     def subcommand(self) -> Build | Serve | Normalize | None:
         return pydantic_settings.get_subcommand(self)  # pyright: ignore[reportReturnType]
 
@@ -362,3 +366,7 @@ class Settings(
             ),
             pydantic_settings.PyprojectTomlConfigSettingsSource(settings_cls),
         )
+
+
+def hex_color(color: pydantic_extra_types.color.Color) -> str:
+    return color.as_hex(format="long")

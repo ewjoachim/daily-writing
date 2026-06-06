@@ -192,7 +192,7 @@ def index_artifacts(
     node_cache: dict[str, Any],
 ) -> Iterable[Artifact]:
     # Diagonal through the rectangle of colors
-    colors = settings.index_colors
+    colors = settings.index_colors_hex
     social_preview_contents = social_preview.SocialPreviewContents(
         top_line=settings.site_full_url.host or "",
         title=settings.site_name,
