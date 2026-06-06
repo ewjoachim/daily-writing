@@ -47,14 +47,16 @@ def get_artifacts(
     settings: settings_module.Settings, context: build_context.BuildContext
 ) -> Iterable[artifacts.BaseArtifact | atom.FeedEntryArtifact]:
     node_cache: dict[str, Any] = {}
+    logger.info("Building fonts")
     font_files = fonts.get_all_font_files(settings=settings)
     yield from font_files.artifacts
+
+    logger.info("Building index")
     writings = [
         writing
         for writing in models.Writing.get_all_writings(settings=settings)
         if writing.last_date <= settings.max_date
     ]
-
     yield from index_artifacts(
         settings=settings,
         context=context,
@@ -62,7 +64,9 @@ def get_artifacts(
         font_files=font_files,
         node_cache=node_cache,
     )
+    logger.info("Building static files")
     yield from static_artifacts(settings=settings)
+    logger.info("Building writing files")
     for writing in writings:
         yield from writing_artifacts(
             settings=settings,
