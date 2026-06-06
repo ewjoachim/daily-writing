@@ -1,9 +1,13 @@
 import io
 import pathlib
-from typing import override
+from typing import Protocol, override
 
 import pydantic
 from pydantic import dataclasses as pdataclasses
+
+
+class BaseArtifact(Protocol):
+    def write(self, destination: pathlib.Path): ...
 
 
 @pdataclasses.dataclass(kw_only=True)

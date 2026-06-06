@@ -17,13 +17,6 @@ from . import (
 )
 from . import settings as settings_module
 
-type Artifact = (
-    artifacts.TextArtifact
-    | artifacts.HTMLArtifact
-    | artifacts.BytesArtifact
-    | atom.FeedEntryArtifact
-    | artifacts.FileArtifact
-)
 logger = logging.getLogger("daily_writing")
 
 
@@ -52,7 +45,7 @@ def build(
 
 def get_artifacts(
     settings: settings_module.Settings, context: build_context.BuildContext
-) -> Iterable[Artifact]:
+) -> Iterable[artifacts.BaseArtifact | atom.FeedEntryArtifact]:
     node_cache: dict[str, Any] = {}
     font_files = fonts.get_all_font_files(settings=settings)
     yield from font_files.artifacts
@@ -81,7 +74,9 @@ def get_artifacts(
         )
 
 
-def static_artifacts(settings: settings_module.Settings) -> Iterable[Artifact]:
+def static_artifacts(
+    settings: settings_module.Settings,
+) -> Iterable[artifacts.BaseArtifact]:
     framework_static = pathlib.Path(__file__).parent / "static"
     project_static = settings.source_dir / settings.source_static_dir
 
@@ -101,7 +96,7 @@ def writing_artifacts(  # noqa: PLR0917
     writing: models.Writing,
     font_files: fonts.FontFiles,
     node_cache: dict[str, Any],
-) -> Iterable[Artifact]:
+) -> Iterable[artifacts.BaseArtifact | atom.FeedEntryArtifact]:
     top_line = [
         settings.site_full_url.host or "",
         settings.site_name,
@@ -190,7 +185,7 @@ def index_artifacts(
     writings: list[models.Writing],
     font_files: fonts.FontFiles,
     node_cache: dict[str, Any],
-) -> Iterable[Artifact]:
+) -> Iterable[artifacts.BaseArtifact]:
     # Diagonal through the rectangle of colors
     colors = settings.index_colors_hex
     social_preview_contents = social_preview.SocialPreviewContents(
