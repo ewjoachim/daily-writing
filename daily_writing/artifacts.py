@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import io
 import pathlib
 from typing import override
