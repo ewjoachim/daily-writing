@@ -12,15 +12,20 @@ Daily Writing offers various features, such as:
 - A page for each writing and a homepage. A menu displaying a calendar with all the
   writing for all months.
 - Each day is linked to a "prompt" (as in writever/writober prompt), and can have a
-  title distinct from the prompt.
-- A given writing can span over multiple days (e.g. if you're late), and the calendar
-  will reflect that. Those days may even be non-consecutive.
+  title distinct from the prompt. This is useful if the title of your writing isn't
+  excatly the prompt you were given for the day. Also, if your prompts are in a given
+  language and the title is the prompt you translated to your language, it's nice.
+  The prompt will be displayed in the menu over the title.
+- A given writing can span over multiple days and their associated prompts (e.g. if
+  you're late), and the calendar will reflect that. Those days may even be
+  non-consecutive. It's assumed that the title will be composed of multiple parts each
+  related to the associated prompts.
 - Each day in a month is linked to a unique color, and the calendar is colored
   accordingly. The homepage displays all the month's colors.
 - Posts can be written in advance and will only be published of their date.
 - Links to the previous and next writings, for binge-reading.
 - Most metadata can be extracted from the name of the file and the writing markdown
-  title, but can then be normalized to frontmatter. Having a frontmatter can help when
+  title, but can then be normalized to frontmatter. Having a frontmatter is necessaryÒ when
   using a CMS editor (see below).
 - Writings spanning multiple days will have a gradient between the colors of the days.
 - A RSS feed.
@@ -35,6 +40,7 @@ Daily Writing offers various features, such as:
 - Support of various locales, for date formats. Apart from dates and numbers, all the
   words that appear on the interface are configurable, so technically, we support all
   languages that Unicode supports.
+- If you rename a file but want to keep its original URL too, you can add aliases.
 
 Author's personal undying love of handcrafted open source and meticulous yak shaving
 went into this project. He likes to think that it shows.
@@ -43,6 +49,21 @@ went into this project. He likes to think that it shows.
 
 https://writober.ewjoach.im/ is deployed from https://github.com/ewjoachim/writober,
 using this project.
+
+## Extraction rules
+
+From a single file without a frontmatter, these are the informations being extracted.
+Say the file is at `2026/10/03-hello.md` and its content starts with a title that says:
+`# 03 - Bonjour`. The system will find that this writing covers a single day
+(`2026-10-03`), its prompt is "hello" and its official title is "Bonjour".
+
+Say the file is at `2026/10/03-hello-darkness.md` and its content starts with a title
+that says: `# 03&04 - Bonjour, Obscurité`. The system will find that this writing covers
+2 days:
+- `2026-10-03` for which the prompt is `hello` and the title `Bonjour`,
+- `2026-10-04` for which the prompt is `darkness` and the title `Obscurité`.
+
+You can always override those values by editing the frontmatter.
 
 ## Installation
 
