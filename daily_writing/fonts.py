@@ -453,7 +453,6 @@ def get_font_family(
 def get_all_font_files(
     settings: settings_module.Settings,
 ) -> FontFiles:
-    (settings.source_dir / settings.cache_dir).mkdir(exist_ok=True, parents=True)
     body_font_family = get_font_family(
         settings=settings,
         font_input=settings.body_ttf_font,
