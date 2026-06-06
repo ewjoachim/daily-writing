@@ -8,6 +8,7 @@ from . import (
     artifacts,
     atom,
     build_context,
+    cms,
     fonts,
     html,
     i18n,
@@ -76,6 +77,10 @@ def get_artifacts(
             font_files=font_files,
             node_cache=node_cache,
         )
+
+    if settings.include_cms:
+        logger.info("Building cms")
+        yield from cms.cms_artifacts(settings=settings)
 
 
 def static_artifacts(
