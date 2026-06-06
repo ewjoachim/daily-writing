@@ -109,10 +109,33 @@ class Prompt:
 
 
 class BaseFrontMatter(pydantic.BaseModel):
-    full_title: str | None = None
-    description: str | None = None
-    redirect_aliases: list[pathlib.Path] = []
-    date: datetime.date | None = None
+    full_title: Annotated[
+        str | None,
+        pydantic.Field(
+            description="Full title for the writing (can be auto-generated from individual prompt titles)"
+        ),
+    ] = None
+    description: Annotated[
+        str | None,
+        pydantic.Field(
+            description="Additional text for the writing, appearing in various SEO tags or the social preview image. Defaults to the first words of the writing."
+        ),
+    ] = None
+    redirect_aliases: Annotated[
+        list[pathlib.Path],
+        pydantic.Field(description=""),
+        settings_module.CMSFieldOverride(
+            collapsed=True,
+            summary="{{fields.alias}}",
+            field={
+                "label": "Alias (url path that should redirect to the main url, e.g. previous/path/to/writing.html)"
+            },
+        ),
+    ] = []
+    date: Annotated[
+        datetime.date | None,
+        pydantic.Field(description="Date of first prompt (mainly used for CMS)"),
+    ] = None
 
 
 class SinglePromptFrontMatter(BaseFrontMatter, PartialPrompt):
@@ -120,7 +143,13 @@ class SinglePromptFrontMatter(BaseFrontMatter, PartialPrompt):
 
 
 class MultiplePromptsFrontMatter(BaseFrontMatter):
-    prompts: list[PartialPrompt]
+    prompts: Annotated[
+        list[PartialPrompt],
+        settings_module.CMSFieldOverride(
+            collapsed=False,
+            summary="{{fields.title}}",
+        ),
+    ]
 
 
 def select_model(v: Any) -> Any:

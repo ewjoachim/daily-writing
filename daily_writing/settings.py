@@ -163,7 +163,9 @@ class Settings(
         pydantic.Field(description="Name of the website. Appears in multiple places."),
     ]
     description: Annotated[
-        str, pydantic.Field(description="Description of the website.")
+        str,
+        pydantic.Field(description="Description of the website."),
+        CMSFieldOverride(widget="text"),
     ]
     copyright: Annotated[
         str, pydantic.Field(description="Copyright mention, appears in the footer")
@@ -176,6 +178,12 @@ class Settings(
         pydantic.BeforeValidator(validate_locale),
         pydantic.Field(
             description="Website language (used for the HTML declaration and the location of dates). Format: BCP47 (e.g. en-US)"
+        ),
+        CMSFieldOverride(
+            pattern=[
+                "^[a-z]{2}-[a-z]{2}$",
+                "Must be in format xx-xx (e.g. fr-fr)",
+            ],
         ),
     ]
     repository_link_name: Annotated[
@@ -240,18 +248,21 @@ class Settings(
         pydantic.Field(
             description="List of colors used throughout a given month. Will cycle if there are less than the number of days in said month. Should be harmonious if displayed as a grid of width 7 or less."
         ),
+        CMSFieldOverride(field={"label": "Color", "required": True}),
     ]
     index_colors: Annotated[
         list[pydantic_extra_types.color.Color],
         pydantic.Field(
             description="The index page will have a color bar containing a gradient of the colors defined here from top to bottom."
         ),
+        CMSFieldOverride(field={"label": "Color", "required": True}),
     ]
     extra_css: Annotated[
         list[pydantic.FilePath],
         pydantic.Field(
             description="List of extra CSS files to add to the HTML pages. Must all be under the source static folder."
         ),
+        CMSFieldOverride(field={"label": "Path to CSS"}),
     ] = []
     # Images
     social_preview_width: Annotated[
@@ -273,6 +284,7 @@ class Settings(
         pydantic.Field(
             description="Website logo. Must be under the source static folder."
         ),
+        CMSFieldOverride(widget="image"),
     ]
     icon_links: Annotated[
         list[IconLink],
@@ -329,6 +341,7 @@ class Settings(
         pydantic.Field(
             description="Verbosity level (0=Critical, 1=Error, 2=Warning, 3=Info, 4=debug)"
         ),
+        CMSFieldOverride(hint="Verbosity level"),
     ] = "INFO"
 
     include_cms: Annotated[
