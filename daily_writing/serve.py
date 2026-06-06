@@ -6,6 +6,7 @@ from typing import Any, override
 
 import fastapi
 import fastapi.staticfiles
+import pydantic.networks
 import uvicorn
 import watchfiles
 import watchfiles.main
@@ -30,7 +31,7 @@ async def serve_async(settings: settings_module.Settings):
     stop_event = asyncio.Event()
 
     app = fastapi.FastAPI()
-    settings.base_url = ""
+    settings.server_url = pydantic.networks.HttpUrl("http://localhost:8000")
 
     async def websocket_endpoint(
         websocket: fastapi.WebSocket,
@@ -86,7 +87,10 @@ async def serve_async(settings: settings_module.Settings):
                 ".",
                 *settings.serve.additional_paths,
                 watch_filter=watchfiles.DefaultFilter(
-                    ignore_paths=[settings.build_dir.absolute()]
+                    ignore_paths=[
+                        settings.build_dir.absolute(),
+                        settings.cache_dir.absolute(),
+                    ]
                 ),
                 target=functools.partial(
                     build.build, settings=settings, context=context

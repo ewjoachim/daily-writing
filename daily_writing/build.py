@@ -1,9 +1,6 @@
-from __future__ import annotations
-
 import logging
 import pathlib
 import shutil
-import urllib.parse
 from collections.abc import Iterable
 from typing import Any
 
@@ -11,6 +8,7 @@ from . import (
     artifacts,
     atom,
     build_context,
+    cms,
     fonts,
     html,
     i18n,
@@ -20,13 +18,6 @@ from . import (
 )
 from . import settings as settings_module
 
-type Artifact = (
-    artifacts.TextArtifact
-    | artifacts.HTMLArtifact
-    | artifacts.BytesArtifact
-    | atom.FeedEntryArtifact
-    | artifacts.FileArtifact
-)
 logger = logging.getLogger("daily_writing")
 
 
@@ -55,16 +46,18 @@ def build(
 
 def get_artifacts(
     settings: settings_module.Settings, context: build_context.BuildContext
-) -> Iterable[Artifact]:
+) -> Iterable[artifacts.BaseArtifact | atom.FeedEntryArtifact]:
     node_cache: dict[str, Any] = {}
+    logger.info("Building fonts")
     font_files = fonts.get_all_font_files(settings=settings)
     yield from font_files.artifacts
+
+    logger.info("Building index")
     writings = [
         writing
         for writing in models.Writing.get_all_writings(settings=settings)
         if writing.last_date <= settings.max_date
     ]
-
     yield from index_artifacts(
         settings=settings,
         context=context,
@@ -72,7 +65,9 @@ def get_artifacts(
         font_files=font_files,
         node_cache=node_cache,
     )
+    logger.info("Building static files")
     yield from static_artifacts(settings=settings)
+    logger.info("Building writing files")
     for writing in writings:
         yield from writing_artifacts(
             settings=settings,
@@ -83,8 +78,14 @@ def get_artifacts(
             node_cache=node_cache,
         )
 
+    if settings.include_cms:
+        logger.info("Building cms")
+        yield from cms.cms_artifacts(settings=settings)
 
-def static_artifacts(settings: settings_module.Settings) -> Iterable[Artifact]:
+
+def static_artifacts(
+    settings: settings_module.Settings,
+) -> Iterable[artifacts.BaseArtifact]:
     framework_static = pathlib.Path(__file__).parent / "static"
     project_static = settings.source_dir / settings.source_static_dir
 
@@ -104,9 +105,9 @@ def writing_artifacts(  # noqa: PLR0917
     writing: models.Writing,
     font_files: fonts.FontFiles,
     node_cache: dict[str, Any],
-) -> Iterable[Artifact]:
+) -> Iterable[artifacts.BaseArtifact | atom.FeedEntryArtifact]:
     top_line = [
-        urllib.parse.urlparse(settings.base_url).hostname or "",
+        settings.site_full_url.host or "",
         settings.site_name,
     ]
     colors = [settings.color_cycle[prompt.color_index] for prompt in writing.prompts]
@@ -121,15 +122,13 @@ def writing_artifacts(  # noqa: PLR0917
         body_font=font_files.body_font,
         title_font=font_files.title_font,
     )
-    social_preview_filename = str(
-        writing.md_path.relative_to(settings.source_dir).with_suffix(".png")
-    ).replace("/", "-")
+    social_preview_filename = str(writing.md_path.with_suffix(".png")).replace("/", "-")
 
     social_preview_path = settings.social_preview_path / social_preview_filename
 
     page_metadata = models.PageMetadata(
         title=writing.full_title,
-        url_path=f"{settings.base_url}/{writing.url}",
+        url_path=writing.url,
         description=writing.markdown_file.description,
         social_preview_url=get_social_preview_url(
             path=social_preview_path, signature=social_preview_contents.signature
@@ -151,7 +150,7 @@ def writing_artifacts(  # noqa: PLR0917
         node_cache=node_cache,
     )
 
-    link = f"{settings.base_url}/{writing.url}"
+    link = str(settings.site_full_url / writing.url)
 
     html_path = pathlib.Path(writing.url) / "index.html"
 
@@ -195,11 +194,11 @@ def index_artifacts(
     writings: list[models.Writing],
     font_files: fonts.FontFiles,
     node_cache: dict[str, Any],
-) -> Iterable[Artifact]:
+) -> Iterable[artifacts.BaseArtifact]:
     # Diagonal through the rectangle of colors
-    colors = settings.index_colors
+    colors = settings.index_colors_hex
     social_preview_contents = social_preview.SocialPreviewContents(
-        top_line=urllib.parse.urlparse(settings.base_url).hostname or "",
+        top_line=settings.site_full_url.host or "",
         title=settings.site_name,
         description=settings.description,
         logo=settings.source_static_dir / settings.logo,
@@ -220,7 +219,7 @@ def index_artifacts(
 
     page_metadata = models.PageMetadata(
         title=settings.site_name,
-        url_path="/",
+        url_path="",
         description=markdown_file.description,
         social_preview_url=social_preview_url,
         repository_url=utils.get_repository_url_for_file(

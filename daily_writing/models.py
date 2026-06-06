@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import datetime
 import functools
 import io
@@ -100,9 +98,7 @@ class Prompt:
 
             previous_date = combined.date
 
-            if not combined.title:
-                logger.warning("Could not determine title")
-                return
+            combined.title = combined.title or ""
 
             yield cls(
                 date=combined.date,
@@ -113,10 +109,33 @@ class Prompt:
 
 
 class BaseFrontMatter(pydantic.BaseModel):
-    full_title: str | None = None
-    description: str | None = None
-    redirect_aliases: list[pathlib.Path] = []
-    date: datetime.date | None = None
+    full_title: Annotated[
+        str | None,
+        pydantic.Field(
+            description="Full title for the writing (can be auto-generated from individual prompt titles)"
+        ),
+    ] = None
+    description: Annotated[
+        str | None,
+        pydantic.Field(
+            description="Additional text for the writing, appearing in various SEO tags or the social preview image. Defaults to the first words of the writing."
+        ),
+    ] = None
+    redirect_aliases: Annotated[
+        list[pathlib.Path],
+        pydantic.Field(description=""),
+        settings_module.CMSFieldOverride(
+            collapsed=True,
+            summary="{{fields.alias}}",
+            field={
+                "label": "Alias (url path that should redirect to the main url, e.g. previous/path/to/writing.html)"
+            },
+        ),
+    ] = []
+    date: Annotated[
+        datetime.date | None,
+        pydantic.Field(description="Date of first prompt (mainly used for CMS)"),
+    ] = None
 
 
 class SinglePromptFrontMatter(BaseFrontMatter, PartialPrompt):
@@ -124,7 +143,13 @@ class SinglePromptFrontMatter(BaseFrontMatter, PartialPrompt):
 
 
 class MultiplePromptsFrontMatter(BaseFrontMatter):
-    prompts: list[PartialPrompt]
+    prompts: Annotated[
+        list[PartialPrompt],
+        settings_module.CMSFieldOverride(
+            collapsed=False,
+            summary="{{fields.title}}",
+        ),
+    ]
 
 
 def select_model(v: Any) -> Any:
@@ -181,7 +206,10 @@ class MarkdownFile:
     @property
     def front_matter_prompts(self) -> list[PartialPrompt]:
         if isinstance(self.writing_metadata, MultiplePromptsFrontMatter):
-            return self.writing_metadata.prompts
+            return sorted(
+                self.writing_metadata.prompts,
+                key=lambda p: p.date or datetime.date.max,
+            )
 
         return [self.writing_metadata]
 
@@ -200,11 +228,10 @@ class MarkdownFile:
         parser.use(footnote.footnote_plugin)
         return parser
 
-    @functools.cached_property
-    def html(self):
+    def get_html(self, title_fallback: str):
         markdown = self.markdown
         if self.markdown_title is None:
-            markdown = ""
+            markdown = f"# {title_fallback}\n{markdown}"
         return self._markdown_it_parser.render(markdown)
 
     @functools.cached_property
@@ -227,26 +254,20 @@ def extract_filename_prompts(
     # and other parts are assumed to be original prompts, in the same order.
     # Note: 1-foo-2-bar or 1-2-foo-bar are both ok.
 
-    day_numbers: list[int] = []
+    dates: list[datetime.date] = []
     original_prompts: list[str] = []
     for part in stem.split("-"):
         try:
-            day_numbers.append(int(part))
+            day_number = int(part)
         except ValueError:
             original_prompts.append(part)
-
-    if len(day_numbers) != len(original_prompts):
-        logger.warning(
-            f"Title {stem} is ambiguous: cannot extract day numbers and prompts"
-        )
+        else:
+            dates.append(datetime.date(year=year, month=month, day=day_number))
 
     yield from (
-        PartialPrompt(
-            date=datetime.date(year=year, month=month, day=day_number),
-            original_prompt=original_prompt,
-        )
-        for day_number, original_prompt in zip(
-            day_numbers, original_prompts, strict=False
+        PartialPrompt(date=date, original_prompt=original_prompt)
+        for date, original_prompt in itertools.zip_longest(
+            dates, original_prompts, fillvalue=None
         )
     )
 
@@ -268,19 +289,17 @@ def extract_markdown_title_prompts(
         return
 
     groups = match.groupdict()
-    days = [int(e.strip()) for e in (groups["day_numbers"] or "").split("&")]
+    dates = [
+        datetime.date(year=year, month=month, day=int(e.strip()))
+        for e in (groups["day_numbers"] or "").split("&")
+    ]
     titles = [e.strip() for e in groups["titles"].split(",")]
-    if len(days) != len(titles):
-        if len(days) == 1:
-            titles = [groups["titles"].strip()]
-        else:
-            titles = []
+    if len(dates) != len(titles):
+        titles = [groups["titles"].strip()]
 
     yield from (
-        PartialPrompt(
-            date=datetime.date(year=year, month=month, day=day_number), title=title
-        )
-        for day_number, title in zip(days, titles, strict=False)
+        PartialPrompt(date=date, title=title)
+        for date, title in itertools.zip_longest(dates, titles, fillvalue=None)
     )
 
 
@@ -404,6 +423,7 @@ class Writing:
                     continue
                 logger.info(f"Processing {year}/{month}")
                 yield from cls.get_all_writings_for_month(
+                    source_dir=settings.source_dir,
                     folder=month_folder,
                     month=month,
                     year=year,
@@ -430,6 +450,7 @@ class Writing:
     def get_all_writings_for_month(
         cls,
         *,
+        source_dir: pathlib.Path,
         folder: pathlib.Path,
         month: int,
         year: int,
@@ -443,7 +464,11 @@ class Writing:
                 )
                 continue
             try:
-                writing = cls.from_path(path=path, month=month, year=year)
+                writing = cls.from_path(
+                    path=path.relative_to(source_dir, walk_up=True),
+                    month=month,
+                    year=year,
+                )
             except NotAWriting:
                 logger.debug(f"{path}: Skipping as not a writing", exc_info=True)
                 continue

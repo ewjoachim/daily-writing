@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import calendar
 import datetime
 import itertools
@@ -35,7 +33,7 @@ def layout(
         head(),
         h.body[
             nav(
-                base_url=settings.base_url,
+                base_path=settings.base_path,
                 site_name=settings.site_name,
             ),
             h.div(".content", role="main")[
@@ -113,7 +111,7 @@ def head(
                 rel="alternate",
                 type="application/atom+xml",
                 title="Atom",
-                href=f"{settings.base_url / settings.atom_path}",
+                href=str(settings.site_full_url / str(settings.atom_path)),
             ),
             additional_content,
         ],
@@ -141,8 +139,8 @@ def social_preview_meta(
     settings: settings_module.Settings,
     page_metadata: models.PageMetadata,
 ):
-    url = f"{settings.base_url}/{page_metadata.url_path or ''}"
-    image = f"{settings.base_url}/{page_metadata.social_preview_url}"
+    url = str(settings.site_full_url / (page_metadata.url_path or ""))
+    image = str(settings.site_full_url / page_metadata.social_preview_url)
     return [
         h.meta(property="og:title", content=page_metadata.title),
         h.meta(property="og:type", content="website"),
@@ -156,7 +154,7 @@ def social_preview_meta(
         h.meta(property="og:image:height", content=f"{settings.social_preview_height}"),
         h.meta(
             property="og:image",
-            content=f"{settings.base_url}/{page_metadata.social_preview_url}",
+            content=str(settings.site_full_url / page_metadata.social_preview_url),
         ),
         h.meta(
             property="og:image:alt",
@@ -177,7 +175,7 @@ def nav(
     writings: Iterable[models.Writing],
     node_cache: dict[str, h.Node],
     *,
-    base_url: str,
+    base_path: str,
     site_name: str,
 ) -> h.Node:
     if "nav" in node_cache:
@@ -185,7 +183,7 @@ def nav(
     writings_by_year_month = models.Writing.by_year_month(list(writings))
     node_cache["nav"] = h.div("#menu.closed")[
         h.nav(role="navigation", aria_label="Main")[
-            h.h4[h.a(href=base_url)[site_name]],
+            h.h4[h.a(href=base_path)[site_name]],
             [
                 nav_month(
                     year=year,
@@ -246,12 +244,14 @@ def iter_prompts_groups(
     the end of that prompt group.
     """
     dates = iter(
-        calendar.Calendar(firstweekday=first_day_of_week).itermonthdates(year, month)
+        calendar.Calendar(firstweekday=first_day_of_week.as_int).itermonthdates(
+            year, month
+        )
     )
     by_date = {date: pg for pg in prompt_groups for date in pg.dates}
     # Min date is the first day of week of the first week containing a prompt
     min_date = min(by_date)
-    min_date -= datetime.timedelta(days=min_date.weekday() - first_day_of_week)
+    min_date -= datetime.timedelta(days=min_date.weekday() - first_day_of_week.as_int)
     # Max date is the last day containing a prompt (no need to yield empty days after that)
     max_date = max(by_date)
     while True:
@@ -320,14 +320,16 @@ def nav_day(
     prompts = prompt_group.prompts
     node_cls = h.a
     attrs: dict[str, str] = {}
-    subtitle = prompt_group.get_subtitle(locale=settings.locale)
     if role == "current":
         node_cls = h.span
     else:
-        attrs["href"] = f"{settings.base_url}/{prompt_group.writing.url}"
+        attrs["href"] = str(settings.site_full_url / prompt_group.writing.url)
 
+    subtitle = None
     if role == "menu":
         attrs["style"] = f"grid-column: span {len(list(prompt_group.prompts))}"
+    else:
+        subtitle = prompt_group.get_subtitle(locale=settings.locale)
 
     return node_cls(class_=["day", "full"], **attrs)[
         (
@@ -373,7 +375,7 @@ def nav_day(
                 ">" if role == "next" else None,
             ]
         ],
-        (h.div(".full_date")[subtitle] if subtitle else markupsafe.Markup("&nbsp;")),
+        (h.div(".full_date")[subtitle] if subtitle else ""),
     ]
 
 
@@ -472,7 +474,9 @@ def writing_page(
                         ".markdown",
                     )[
                         markupsafe.Markup(  # noqa: S704
-                            writing.markdown_file.html
+                            writing.markdown_file.get_html(
+                                title_fallback=writing.full_title
+                            )
                         ),
                     ],
                 ],
@@ -511,7 +515,7 @@ def index_page(
                         ".markdown",
                     )[
                         markupsafe.Markup(  # noqa: S704
-                            markdown_file.html
+                            markdown_file.get_html(title_fallback=settings.site_name)
                         ),
                     ],
                 ],

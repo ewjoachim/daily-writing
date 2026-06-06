@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import datetime
 import enum
 import os
@@ -11,8 +9,21 @@ import pydantic
 import pydantic_extra_types.color
 import pydantic_settings
 import tzlocal
+import yarl
 
 from . import i18n
+
+
+class CMSFieldOverride:
+    """Overrides merged into the Sveltia field config auto-generated for a setting.
+
+    Any keyword arguments are forwarded verbatim into the Sveltia field config.
+    Attach to a setting through its annotation, e.g.
+    ``Annotated[..., pydantic.Field(...), CMSFieldOverride(widget="image")]``.
+    """
+
+    def __init__(self, **kwargs: Any):
+        self.kwargs: dict[str, Any] = kwargs
 
 
 class IconLink(pydantic.BaseModel):
@@ -26,7 +37,7 @@ class ColorCycle(pydantic.BaseModel):
     colors: list[pydantic_extra_types.color.Color]
 
     def __getitem__(self, i: int) -> str:
-        return self.colors[i % len(self.colors)].as_hex(format="long")
+        return hex_color(self.colors[i % len(self.colors)])
 
 
 LOCAL_TIMEZONE = tzlocal.get_localzone().key
@@ -68,14 +79,18 @@ def validate_locale(value: Any) -> Any:
         raise pydantic.ValidationError(str(exc)) from exc
 
 
-class DayOfWeek(enum.IntEnum):
-    Monday = 0
-    Tuesday = 1
-    Wednesday = 2
-    Thursday = 3
-    Friday = 4
-    Saturday = 5
-    Sunday = 6
+class DayOfWeek(enum.StrEnum):
+    Monday = "Monday"
+    Tuesday = "Tuesday"
+    Wednesday = "Wednesday"
+    Thursday = "Thursday"
+    Friday = "Friday"
+    Saturday = "Saturday"
+    Sunday = "Sunday"
+
+    @property
+    def as_int(self) -> int:
+        return list(type(self)).index(self)
 
 
 class Settings(
@@ -120,6 +135,13 @@ class Settings(
         ),
     ] = pathlib.Path("static")
 
+    build_cms_dir: Annotated[
+        pathlib.Path,
+        pydantic.Field(
+            description="Path to which the CMS will be written to. Will likely be the URL path of the CMS."
+        ),
+    ] = pathlib.Path("admin")
+
     fonts_css_filename: Annotated[
         str,
         pydantic.Field(
@@ -141,7 +163,9 @@ class Settings(
         pydantic.Field(description="Name of the website. Appears in multiple places."),
     ]
     description: Annotated[
-        str, pydantic.Field(description="Description of the website.")
+        str,
+        pydantic.Field(description="Description of the website."),
+        CMSFieldOverride(widget="text"),
     ]
     copyright: Annotated[
         str, pydantic.Field(description="Copyright mention, appears in the footer")
@@ -154,6 +178,12 @@ class Settings(
         pydantic.BeforeValidator(validate_locale),
         pydantic.Field(
             description="Website language (used for the HTML declaration and the location of dates). Format: BCP47 (e.g. en-US)"
+        ),
+        CMSFieldOverride(
+            pattern=[
+                "^[a-z]{2}-[a-z]{2}$",
+                "Must be in format xx-xx (e.g. fr-fr)",
+            ],
         ),
     ]
     repository_link_name: Annotated[
@@ -181,9 +211,18 @@ class Settings(
     ] = DayOfWeek.Monday
 
     # URLs
-    base_url: Annotated[
-        str, pydantic.Field(description="Main URL where the website is deployed.")
+    server_url: Annotated[
+        pydantic.networks.HttpUrl,
+        pydantic.Field(
+            description="Main URL where the website is deployed. (e.g. https://writober.ewjoach.im/)"
+        ),
     ]
+    base_path: Annotated[
+        str,
+        pydantic.Field(
+            description="Under server_url, path to the root of the website (no leading slash)."
+        ),
+    ] = ""
     repository_url: Annotated[
         str,
         pydantic.Field(
@@ -199,7 +238,7 @@ class Settings(
     atom_path: Annotated[
         pathlib.Path,
         pydantic.Field(
-            description="Path at which the Atom feed file will be written in the build directory."
+            description="Path at which the Atom feed file will be written in the build directory (no leading slash)."
         ),
     ] = pathlib.Path("feed.atom")
 
@@ -209,18 +248,21 @@ class Settings(
         pydantic.Field(
             description="List of colors used throughout a given month. Will cycle if there are less than the number of days in said month. Should be harmonious if displayed as a grid of width 7 or less."
         ),
+        CMSFieldOverride(field={"label": "Color", "required": True}),
     ]
     index_colors: Annotated[
-        list[str],
+        list[pydantic_extra_types.color.Color],
         pydantic.Field(
             description="The index page will have a color bar containing a gradient of the colors defined here from top to bottom."
         ),
+        CMSFieldOverride(field={"label": "Color", "required": True}),
     ]
     extra_css: Annotated[
         list[pydantic.FilePath],
         pydantic.Field(
             description="List of extra CSS files to add to the HTML pages. Must all be under the source static folder."
         ),
+        CMSFieldOverride(field={"label": "Path to CSS"}),
     ] = []
     # Images
     social_preview_width: Annotated[
@@ -242,6 +284,7 @@ class Settings(
         pydantic.Field(
             description="Website logo. Must be under the source static folder."
         ),
+        CMSFieldOverride(widget="image"),
     ]
     icon_links: Annotated[
         list[IconLink],
@@ -274,12 +317,6 @@ class Settings(
             description='Fallback font for body. Either "serif" or "sans-serif".'
         ),
     ] = "sans-serif"
-    github_token: Annotated[
-        str | None,
-        pydantic.Field(
-            description="GitHub token used for avoid rate limits while downloading font files from GitHub. You may set it with the env var: GITHUB_TOKEN",
-        ),
-    ] = os.environ.get("GITHUB_TOKEN")
 
     # Subcommands
     build: Annotated[
@@ -304,7 +341,28 @@ class Settings(
         pydantic.Field(
             description="Verbosity level (0=Critical, 1=Error, 2=Warning, 3=Info, 4=debug)"
         ),
+        CMSFieldOverride(hint="Verbosity level"),
     ] = "INFO"
+
+    include_cms: Annotated[
+        bool,
+        pydantic.Field(description="Whether to include a Sveltia CMS admin"),
+        CMSFieldOverride(widget="hidden"),
+    ] = True
+
+    cms_config: Annotated[
+        dict[str, pydantic.JsonValue],
+        pydantic.Field(description="Additional config for the CMS"),
+        CMSFieldOverride(widget="hidden"),
+    ] = {}
+
+    sveltia_version: Annotated[
+        str,
+        pydantic.Field(
+            description="Version of Sveltia to pull or 'latest' for the latest one (download is cached unless latest is used)"
+        ),
+        CMSFieldOverride(widget="hidden"),
+    ] = "latest"
 
     @property
     def build_static_path(self) -> str:
@@ -314,12 +372,24 @@ class Settings(
         return path
 
     @property
+    def site_full_url(self) -> yarl.URL:
+        return yarl.URL(str(self.server_url)) / self.base_path
+
+    @property
     def color_cycle(self) -> ColorCycle:
         return ColorCycle(colors=self.colors)
 
     @property
+    def index_colors_hex(self) -> list[str]:
+        return [hex_color(c) for c in self.index_colors]
+
+    @property
     def subcommand(self) -> Build | Serve | Normalize | None:
         return pydantic_settings.get_subcommand(self)  # pyright: ignore[reportReturnType]
+
+    @property
+    def github_token(self):
+        return os.environ.get("GITHUB_TOKEN")
 
     @override
     @classmethod
@@ -346,3 +416,7 @@ class Settings(
             ),
             pydantic_settings.PyprojectTomlConfigSettingsSource(settings_cls),
         )
+
+
+def hex_color(color: pydantic_extra_types.color.Color) -> str:
+    return color.as_hex(format="long")
