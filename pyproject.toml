@@ -38,6 +38,7 @@ dependencies = [
     "markdown-it-py[plugins]>=4.0.0",
     "yarl>=1.24.2",
     "pyyaml>=6.0.3",
+    "typing-extensions>=4.15.0",
 ]
 [project.optional-dependencies]
 server = [
