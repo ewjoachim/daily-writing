@@ -177,7 +177,10 @@ class MarkdownFile:
     @property
     def front_matter_prompts(self) -> list[PartialPrompt]:
         if isinstance(self.writing_metadata, MultiplePromptsFrontMatter):
-            return self.writing_metadata.prompts
+            return sorted(
+                self.writing_metadata.prompts,
+                key=lambda p: p.date or datetime.date.max,
+            )
 
         return [self.writing_metadata]
 
@@ -196,11 +199,10 @@ class MarkdownFile:
         parser.use(footnote.footnote_plugin)
         return parser
 
-    @functools.cached_property
-    def html(self):
+    def get_html(self, title_fallback: str):
         markdown = self.markdown
         if self.markdown_title is None:
-            markdown = ""
+            markdown = f"# {title_fallback}\n{markdown}"
         return self._markdown_it_parser.render(markdown)
 
     @functools.cached_property
