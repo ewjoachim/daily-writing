@@ -37,6 +37,7 @@ dependencies = [
     "flowmark>=0.6.1",
     "markdown-it-py[plugins]>=4.0.0",
     "yarl>=1.24.2",
+    "pyyaml>=6.0.3",
 ]
 [project.optional-dependencies]
 server = [

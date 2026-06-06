@@ -1,12 +1,20 @@
 import logging
+from typing import Any, override
 
 import flowmark
 import frontmatter
+import yaml
 
 from . import models
 from . import settings as settings_module
 
 logger = logging.getLogger("daily_writing")
+
+
+class NoAliasDumper(yaml.SafeDumper):
+    @override
+    def ignore_aliases(self, data: Any) -> bool:
+        return True
 
 
 def normalize(settings: settings_module.Settings) -> None:
@@ -56,6 +64,7 @@ def normalize_writing(writing: models.Writing, rewrite: bool) -> bool:
 
     front_matter = models.MultiplePromptsFrontMatter(
         full_title=writing.full_title,
+        date=min(p.date for p in prompts if p.date),
         prompts=prompts,
     )
 
@@ -74,7 +83,7 @@ def normalize_writing(writing: models.Writing, rewrite: bool) -> bool:
     # Remove the blank line between the frontmatter and the post (for compatibility
     # with flowmark)
     new_content = flowmark.reformat_text(
-        frontmatter.dumps(post=new_post) + "\n",
+        frontmatter.dumps(post=new_post, Dumper=NoAliasDumper) + "\n",
         ellipses=True,
         cleanups=True,
     )
