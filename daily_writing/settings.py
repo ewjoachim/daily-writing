@@ -135,6 +135,13 @@ class Settings(
         ),
     ] = pathlib.Path("static")
 
+    build_cms_dir: Annotated[
+        pathlib.Path,
+        pydantic.Field(
+            description="Path to which the CMS will be written to. Will likely be the URL path of the CMS."
+        ),
+    ] = pathlib.Path("admin")
+
     fonts_css_filename: Annotated[
         str,
         pydantic.Field(
@@ -323,6 +330,26 @@ class Settings(
             description="Verbosity level (0=Critical, 1=Error, 2=Warning, 3=Info, 4=debug)"
         ),
     ] = "INFO"
+
+    include_cms: Annotated[
+        bool,
+        pydantic.Field(description="Whether to include a Sveltia CMS admin"),
+        CMSFieldOverride(widget="hidden"),
+    ] = True
+
+    cms_config: Annotated[
+        dict[str, pydantic.JsonValue],
+        pydantic.Field(description="Additional config for the CMS"),
+        CMSFieldOverride(widget="hidden"),
+    ] = {}
+
+    sveltia_version: Annotated[
+        str,
+        pydantic.Field(
+            description="Version of Sveltia to pull or 'latest' for the latest one (download is cached unless latest is used)"
+        ),
+        CMSFieldOverride(widget="hidden"),
+    ] = "latest"
 
     @property
     def build_static_path(self) -> str:
