@@ -26,8 +26,10 @@ Daily Writing offers various features, such as:
 - Links to the previous and next writings, for binge-reading.
 - Most metadata can be extracted from the name of the file and the writing markdown
   title, but can then be normalized to frontmatter. Having a frontmatter is necessaryÒ when
-  using a CMS editor (see below).
+  using a CMS editor.
 - Writings spanning multiple days will have a gradient between the colors of the days.
+- A CMS, at `/admin` to update your writings and the site settings directly from your
+  browser.
 - A RSS feed.
 - Nice preview images when you post links to social networks.
 - Discreet links to the GitHub source of each writing, to ease online edition or typo
@@ -177,10 +179,12 @@ jobs:
 
 ## Adding new content
 
-For now: add and edit your markdown files in the repository via Git or via your
-platform's Web interface
+### Manual
+Add and edit your markdown files in the repository via Git or via your
+platform's Web interface.
 
-This approach should also make it very easy to use alongside with a CMS, there are
-open-source ones like [Sveltia CMS](https://github.com/sveltia/sveltia-cms), allowing
-you to setup a website that is usable with a nicer admin interface and without knowing
-about git, or things like that. If anyone wants to contribute that, it's very welcome.
+### Online
+Daily-Writing can come with a [CMS](https://github.com/sveltia/sveltia-cms), allowing
+you to get a nice admin interface that doesn't require to interact with Git.
+
+Integration is not yet 100% streamlined, but it's coming.
