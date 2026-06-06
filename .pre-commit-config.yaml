@@ -23,10 +23,10 @@ repos:
       - id: mixed-line-ending
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.12
+    rev: v0.15.16
     hooks:
       - id: ruff-check
-        args: [ --fix, --unsafe-fixes, --show-fixes ]
+        args: [--fix, --unsafe-fixes, --show-fixes]
       - id: ruff-format
 
   - repo: https://github.com/ewjoachim/sync-pre-commit-with-uv
