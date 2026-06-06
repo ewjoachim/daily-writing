@@ -320,14 +320,16 @@ def nav_day(
     prompts = prompt_group.prompts
     node_cls = h.a
     attrs: dict[str, str] = {}
-    subtitle = prompt_group.get_subtitle(locale=settings.locale)
     if role == "current":
         node_cls = h.span
     else:
         attrs["href"] = str(settings.site_full_url / prompt_group.writing.url)
 
+    subtitle = None
     if role == "menu":
         attrs["style"] = f"grid-column: span {len(list(prompt_group.prompts))}"
+    else:
+        subtitle = prompt_group.get_subtitle(locale=settings.locale)
 
     return node_cls(class_=["day", "full"], **attrs)[
         (
@@ -373,7 +375,7 @@ def nav_day(
                 ">" if role == "next" else None,
             ]
         ],
-        (h.div(".full_date")[subtitle] if subtitle else markupsafe.Markup("&nbsp;")),
+        (h.div(".full_date")[subtitle] if subtitle else ""),
     ]
 
 
