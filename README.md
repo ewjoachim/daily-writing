@@ -73,9 +73,9 @@ Environment variables are all upper case and prefixed with `DAILY_WRITING_`
 
 Examples:
 
-- `daily-writing.toml`: `base_url = "https://writober.ewjoach.im"`
-- environments variables: `BASE_URL="https://writober.ewjoach.im"`
-- CLI flags: `--base-url="https://writober.ewjoach.im"`
+- `daily-writing.toml`: `server_url = "https://writober.ewjoach.im"`
+- environments variables: `SERVER_URL="https://writober.ewjoach.im"`
+- CLI flags: `--server-url="https://writober.ewjoach.im"`
 
 The easiest and most up-to-date way to learn about every configuration option is
 through: `daily-writing -h`. Feel free to consult [daily-writing.toml](https://github.com/ewjoachim/writober/blob/main/daily-writing.toml) for a working example.

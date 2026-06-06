@@ -9,6 +9,7 @@ import pydantic
 import pydantic_extra_types.color
 import pydantic_settings
 import tzlocal
+import yarl
 
 from . import i18n
 
@@ -183,9 +184,18 @@ class Settings(
     ] = DayOfWeek.Monday
 
     # URLs
-    base_url: Annotated[
-        str, pydantic.Field(description="Main URL where the website is deployed.")
+    server_url: Annotated[
+        pydantic.networks.HttpUrl,
+        pydantic.Field(
+            description="Main URL where the website is deployed. (e.g. https://writober.ewjoach.im/)"
+        ),
     ]
+    base_path: Annotated[
+        str,
+        pydantic.Field(
+            description="Under server_url, path to the root of the website (no leading slash)."
+        ),
+    ] = ""
     repository_url: Annotated[
         str,
         pydantic.Field(
@@ -201,7 +211,7 @@ class Settings(
     atom_path: Annotated[
         pathlib.Path,
         pydantic.Field(
-            description="Path at which the Atom feed file will be written in the build directory."
+            description="Path at which the Atom feed file will be written in the build directory (no leading slash)."
         ),
     ] = pathlib.Path("feed.atom")
 
@@ -314,6 +324,10 @@ class Settings(
         if self.build_static_dir:
             path += f"{self.build_static_dir}/"
         return path
+
+    @property
+    def site_full_url(self) -> yarl.URL:
+        return yarl.URL(str(self.server_url)) / self.base_path
 
     @property
     def color_cycle(self) -> ColorCycle:

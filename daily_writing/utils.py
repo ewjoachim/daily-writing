@@ -7,6 +7,8 @@ import random
 import string
 from collections.abc import Callable, Iterable
 
+import yarl
+
 
 @functools.cache
 def excerpt(text: str, max_length: int = 200) -> str:
@@ -55,14 +57,7 @@ def get_next[T](obj: T, iterable: Iterable[T]) -> T | None:
 def get_repository_url_for_file(
     repository_url: str, repository_file_url_prefix: str, file: pathlib.Path
 ) -> str:
-    return "/".join(
-        e.strip("/")
-        for e in [
-            repository_url,
-            repository_file_url_prefix,
-            str(file),
-        ]
-    )
+    return str(yarl.URL(repository_url) / repository_file_url_prefix / str(file))
 
 
 def cache_bust():

@@ -33,7 +33,7 @@ def layout(
         head(),
         h.body[
             nav(
-                base_url=settings.base_url,
+                base_path=settings.base_path,
                 site_name=settings.site_name,
             ),
             h.div(".content", role="main")[
@@ -111,7 +111,7 @@ def head(
                 rel="alternate",
                 type="application/atom+xml",
                 title="Atom",
-                href=f"{settings.base_url / settings.atom_path}",
+                href=str(settings.site_full_url / str(settings.atom_path)),
             ),
             additional_content,
         ],
@@ -139,8 +139,8 @@ def social_preview_meta(
     settings: settings_module.Settings,
     page_metadata: models.PageMetadata,
 ):
-    url = f"{settings.base_url}/{page_metadata.url_path or ''}"
-    image = f"{settings.base_url}/{page_metadata.social_preview_url}"
+    url = str(settings.site_full_url / (page_metadata.url_path or ""))
+    image = str(settings.site_full_url / page_metadata.social_preview_url)
     return [
         h.meta(property="og:title", content=page_metadata.title),
         h.meta(property="og:type", content="website"),
@@ -154,7 +154,7 @@ def social_preview_meta(
         h.meta(property="og:image:height", content=f"{settings.social_preview_height}"),
         h.meta(
             property="og:image",
-            content=f"{settings.base_url}/{page_metadata.social_preview_url}",
+            content=str(settings.site_full_url / page_metadata.social_preview_url),
         ),
         h.meta(
             property="og:image:alt",
@@ -175,7 +175,7 @@ def nav(
     writings: Iterable[models.Writing],
     node_cache: dict[str, h.Node],
     *,
-    base_url: str,
+    base_path: str,
     site_name: str,
 ) -> h.Node:
     if "nav" in node_cache:
@@ -183,7 +183,7 @@ def nav(
     writings_by_year_month = models.Writing.by_year_month(list(writings))
     node_cache["nav"] = h.div("#menu.closed")[
         h.nav(role="navigation", aria_label="Main")[
-            h.h4[h.a(href=base_url)[site_name]],
+            h.h4[h.a(href=base_path)[site_name]],
             [
                 nav_month(
                     year=year,
@@ -324,7 +324,7 @@ def nav_day(
     if role == "current":
         node_cls = h.span
     else:
-        attrs["href"] = f"{settings.base_url}/{prompt_group.writing.url}"
+        attrs["href"] = str(settings.site_full_url / prompt_group.writing.url)
 
     if role == "menu":
         attrs["style"] = f"grid-column: span {len(list(prompt_group.prompts))}"

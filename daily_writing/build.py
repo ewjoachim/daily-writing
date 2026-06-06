@@ -1,7 +1,6 @@
 import logging
 import pathlib
 import shutil
-import urllib.parse
 from collections.abc import Iterable
 from typing import Any
 
@@ -104,7 +103,7 @@ def writing_artifacts(  # noqa: PLR0917
     node_cache: dict[str, Any],
 ) -> Iterable[Artifact]:
     top_line = [
-        urllib.parse.urlparse(settings.base_url).hostname or "",
+        settings.site_full_url.host or "",
         settings.site_name,
     ]
     colors = [settings.color_cycle[prompt.color_index] for prompt in writing.prompts]
@@ -119,15 +118,13 @@ def writing_artifacts(  # noqa: PLR0917
         body_font=font_files.body_font,
         title_font=font_files.title_font,
     )
-    social_preview_filename = str(
-        writing.md_path.relative_to(settings.source_dir).with_suffix(".png")
-    ).replace("/", "-")
+    social_preview_filename = str(writing.md_path.with_suffix(".png")).replace("/", "-")
 
     social_preview_path = settings.social_preview_path / social_preview_filename
 
     page_metadata = models.PageMetadata(
         title=writing.full_title,
-        url_path=f"{settings.base_url}/{writing.url}",
+        url_path=writing.url,
         description=writing.markdown_file.description,
         social_preview_url=get_social_preview_url(
             path=social_preview_path, signature=social_preview_contents.signature
@@ -149,7 +146,7 @@ def writing_artifacts(  # noqa: PLR0917
         node_cache=node_cache,
     )
 
-    link = f"{settings.base_url}/{writing.url}"
+    link = str(settings.site_full_url / writing.url)
 
     html_path = pathlib.Path(writing.url) / "index.html"
 
@@ -197,7 +194,7 @@ def index_artifacts(
     # Diagonal through the rectangle of colors
     colors = settings.index_colors
     social_preview_contents = social_preview.SocialPreviewContents(
-        top_line=urllib.parse.urlparse(settings.base_url).hostname or "",
+        top_line=settings.site_full_url.host or "",
         title=settings.site_name,
         description=settings.description,
         logo=settings.source_static_dir / settings.logo,
@@ -218,7 +215,7 @@ def index_artifacts(
 
     page_metadata = models.PageMetadata(
         title=settings.site_name,
-        url_path="/",
+        url_path="",
         description=markdown_file.description,
         social_preview_url=social_preview_url,
         repository_url=utils.get_repository_url_for_file(

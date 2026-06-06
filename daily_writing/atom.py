@@ -23,10 +23,10 @@ class FeedEntryArtifact:
 class Feed:
     def __init__(self, settings: settings_module.Settings):
         self.feed_gen: FeedGenerator = FeedGenerator()
-        self.feed_gen.id(settings.base_url or "https://localhost")
+        self.feed_gen.id(str(settings.site_full_url))
         self.feed_gen.title(settings.site_name)
         self.feed_gen.author(name=settings.author)
-        self.feed_gen.link(href=settings.base_url, rel="self")
+        self.feed_gen.link(href=str(settings.site_full_url), rel="self")
         self.feed_gen.subtitle(settings.description)
         self.feed_gen.language(str(settings.locale.locale))
         self.timezone: str = settings.timezone

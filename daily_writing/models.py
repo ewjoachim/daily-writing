@@ -402,6 +402,7 @@ class Writing:
                     continue
                 logger.info(f"Processing {year}/{month}")
                 yield from cls.get_all_writings_for_month(
+                    source_dir=settings.source_dir,
                     folder=month_folder,
                     month=month,
                     year=year,
@@ -428,6 +429,7 @@ class Writing:
     def get_all_writings_for_month(
         cls,
         *,
+        source_dir: pathlib.Path,
         folder: pathlib.Path,
         month: int,
         year: int,
@@ -441,7 +443,11 @@ class Writing:
                 )
                 continue
             try:
-                writing = cls.from_path(path=path, month=month, year=year)
+                writing = cls.from_path(
+                    path=path.relative_to(source_dir, walk_up=True),
+                    month=month,
+                    year=year,
+                )
             except NotAWriting:
                 logger.debug(f"{path}: Skipping as not a writing", exc_info=True)
                 continue
