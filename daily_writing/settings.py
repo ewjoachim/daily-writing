@@ -286,12 +286,6 @@ class Settings(
             description='Fallback font for body. Either "serif" or "sans-serif".'
         ),
     ] = "sans-serif"
-    github_token: Annotated[
-        str | None,
-        pydantic.Field(
-            description="GitHub token used for avoid rate limits while downloading font files from GitHub. You may set it with the env var: GITHUB_TOKEN",
-        ),
-    ] = os.environ.get("GITHUB_TOKEN")
 
     # Subcommands
     build: Annotated[
@@ -340,6 +334,10 @@ class Settings(
     @property
     def subcommand(self) -> Build | Serve | Normalize | None:
         return pydantic_settings.get_subcommand(self)  # pyright: ignore[reportReturnType]
+
+    @property
+    def github_token(self):
+        return os.environ.get("GITHUB_TOKEN")
 
     @override
     @classmethod

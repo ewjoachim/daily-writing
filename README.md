@@ -80,6 +80,11 @@ Examples:
 The easiest and most up-to-date way to learn about every configuration option is
 through: `daily-writing -h`. Feel free to consult [daily-writing.toml](https://github.com/ewjoachim/writober/blob/main/daily-writing.toml) for a working example.
 
+> [!NOTE] There is one extra configuration element: setting the `GITHUB_TOKEN`
+> environment variable will help you avoid rate limiting to GitHub's API. It's not added
+> in the normal configuration elements to avoid accidentally committing it to your
+> repository.
+
 ## CLI
 
 There are 2 main subcommands:
