@@ -244,12 +244,14 @@ def iter_prompts_groups(
     the end of that prompt group.
     """
     dates = iter(
-        calendar.Calendar(firstweekday=first_day_of_week).itermonthdates(year, month)
+        calendar.Calendar(firstweekday=first_day_of_week.as_int).itermonthdates(
+            year, month
+        )
     )
     by_date = {date: pg for pg in prompt_groups for date in pg.dates}
     # Min date is the first day of week of the first week containing a prompt
     min_date = min(by_date)
-    min_date -= datetime.timedelta(days=min_date.weekday() - first_day_of_week)
+    min_date -= datetime.timedelta(days=min_date.weekday() - first_day_of_week.as_int)
     # Max date is the last day containing a prompt (no need to yield empty days after that)
     max_date = max(by_date)
     while True:

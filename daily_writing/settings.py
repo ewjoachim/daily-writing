@@ -66,14 +66,18 @@ def validate_locale(value: Any) -> Any:
         raise pydantic.ValidationError(str(exc)) from exc
 
 
-class DayOfWeek(enum.IntEnum):
-    Monday = 0
-    Tuesday = 1
-    Wednesday = 2
-    Thursday = 3
-    Friday = 4
-    Saturday = 5
-    Sunday = 6
+class DayOfWeek(enum.StrEnum):
+    Monday = "Monday"
+    Tuesday = "Tuesday"
+    Wednesday = "Wednesday"
+    Thursday = "Thursday"
+    Friday = "Friday"
+    Saturday = "Saturday"
+    Sunday = "Sunday"
+
+    @property
+    def as_int(self) -> int:
+        return list(type(self)).index(self)
 
 
 class Settings(
