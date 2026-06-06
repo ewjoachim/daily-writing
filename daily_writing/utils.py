@@ -6,6 +6,7 @@ import pathlib
 import random
 import string
 from collections.abc import Callable, Iterable
+from typing import Any
 
 import yarl
 
@@ -87,3 +88,14 @@ def first_weekday(year: int, month: int) -> int:
 
 def same_month(*dates: datetime.date) -> bool:
     return len({(date.year, date.month) for date in dates}) == 1
+
+
+def deep_merge(d1: dict[str, Any], d2: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge two dictionaries. d2 values take precedence over d1."""
+    merged = dict(d1)
+    for key, value in d2.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = deep_merge(merged[key], value)  # pyright: ignore[reportUnknownArgumentType]
+        else:
+            merged[key] = value
+    return merged
