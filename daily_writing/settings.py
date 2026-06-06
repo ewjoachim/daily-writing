@@ -14,6 +14,18 @@ import yarl
 from . import i18n
 
 
+class CMSFieldOverride:
+    """Overrides merged into the Sveltia field config auto-generated for a setting.
+
+    Any keyword arguments are forwarded verbatim into the Sveltia field config.
+    Attach to a setting through its annotation, e.g.
+    ``Annotated[..., pydantic.Field(...), CMSFieldOverride(widget="image")]``.
+    """
+
+    def __init__(self, **kwargs: Any):
+        self.kwargs: dict[str, Any] = kwargs
+
+
 class IconLink(pydantic.BaseModel):
     rel: str
     type: str | None = None
