@@ -98,9 +98,7 @@ class Prompt:
 
             previous_date = combined.date
 
-            if not combined.title:
-                logger.warning("Could not determine title")
-                return
+            combined.title = combined.title or ""
 
             yield cls(
                 date=combined.date,
@@ -225,26 +223,20 @@ def extract_filename_prompts(
     # and other parts are assumed to be original prompts, in the same order.
     # Note: 1-foo-2-bar or 1-2-foo-bar are both ok.
 
-    day_numbers: list[int] = []
+    dates: list[datetime.date] = []
     original_prompts: list[str] = []
     for part in stem.split("-"):
         try:
-            day_numbers.append(int(part))
+            day_number = int(part)
         except ValueError:
             original_prompts.append(part)
-
-    if len(day_numbers) != len(original_prompts):
-        logger.warning(
-            f"Title {stem} is ambiguous: cannot extract day numbers and prompts"
-        )
+        else:
+            dates.append(datetime.date(year=year, month=month, day=day_number))
 
     yield from (
-        PartialPrompt(
-            date=datetime.date(year=year, month=month, day=day_number),
-            original_prompt=original_prompt,
-        )
-        for day_number, original_prompt in zip(
-            day_numbers, original_prompts, strict=False
+        PartialPrompt(date=date, original_prompt=original_prompt)
+        for date, original_prompt in itertools.zip_longest(
+            dates, original_prompts, fillvalue=None
         )
     )
 
@@ -266,19 +258,17 @@ def extract_markdown_title_prompts(
         return
 
     groups = match.groupdict()
-    days = [int(e.strip()) for e in (groups["day_numbers"] or "").split("&")]
+    dates = [
+        datetime.date(year=year, month=month, day=int(e.strip()))
+        for e in (groups["day_numbers"] or "").split("&")
+    ]
     titles = [e.strip() for e in groups["titles"].split(",")]
-    if len(days) != len(titles):
-        if len(days) == 1:
-            titles = [groups["titles"].strip()]
-        else:
-            titles = []
+    if len(dates) != len(titles):
+        titles = [groups["titles"].strip()]
 
     yield from (
-        PartialPrompt(
-            date=datetime.date(year=year, month=month, day=day_number), title=title
-        )
-        for day_number, title in zip(days, titles, strict=False)
+        PartialPrompt(date=date, title=title)
+        for date, title in itertools.zip_longest(dates, titles, fillvalue=None)
     )
 
 
