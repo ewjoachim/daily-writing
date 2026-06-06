@@ -87,7 +87,10 @@ async def serve_async(settings: settings_module.Settings):
                 ".",
                 *settings.serve.additional_paths,
                 watch_filter=watchfiles.DefaultFilter(
-                    ignore_paths=[settings.build_dir.absolute()]
+                    ignore_paths=[
+                        settings.build_dir.absolute(),
+                        settings.cache_dir.absolute(),
+                    ]
                 ),
                 target=functools.partial(
                     build.build, settings=settings, context=context
