@@ -281,12 +281,12 @@ class Settings(
         ),
     ] = pathlib.Path("social_previews")
     logo: Annotated[
-        pathlib.Path,
+        pathlib.Path | None,
         pydantic.Field(
             description="Website logo. Must be under the source static folder."
         ),
         CMSFieldOverride(widget="image"),
-    ]
+    ] = None
     icon_links: Annotated[
         list[IconLink],
         pydantic.Field(
