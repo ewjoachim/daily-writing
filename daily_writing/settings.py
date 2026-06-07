@@ -1,10 +1,13 @@
 import datetime
 import enum
+import functools
 import os
 import pathlib
+import tomllib
 import zoneinfo
 from typing import Annotated, Any, Literal, override
 
+import babel
 import pydantic
 import pydantic.networks
 import pydantic_extra_types.color
@@ -41,9 +44,6 @@ class ColorCycle(pydantic.BaseModel):
         return hex_color(self.colors[i % len(self.colors)])
 
 
-LOCAL_TIMEZONE = tzlocal.get_localzone().key
-
-
 class Build(pydantic.BaseModel):
     pass
 
@@ -74,6 +74,9 @@ def validate_locale(value: Any) -> Any:
     if not value:
         return value
 
+    if isinstance(value, i18n.Locale):
+        return value
+
     try:
         return i18n.Locale.from_string(value)
     except i18n.LocaleError as exc:
@@ -94,78 +97,60 @@ class DayOfWeek(enum.StrEnum):
         return list(type(self)).index(self)
 
 
+@functools.cache
+def _pyproject_project() -> dict[str, Any]:
+    """Read and cache the [project] section from pyproject.toml."""
+    try:
+        data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+        return data.get("project", {})
+    except FileNotFoundError, tomllib.TOMLDecodeError:
+        return {}
+
+
+def _slug_to_title(slug: str) -> str:
+    return slug.replace("-", " ").replace("_", " ").title()
+
+
+def _default_site_name(data: dict[str, Any]) -> str:
+    project = _pyproject_project()
+    name = project.get("name")
+    if name:
+        return _slug_to_title(name)
+    src_dir = data.get("source_dir", pathlib.Path("."))
+    return _slug_to_title(pathlib.Path(str(src_dir)).resolve().name)
+
+
+def _default_description() -> str | None:
+    return _pyproject_project().get("description")
+
+
+def _default_author() -> str | None:
+    authors = _pyproject_project().get("authors", [])
+    if authors:
+        return authors[0].get("name")
+    return None
+
+
 class Settings(
     pydantic_settings.BaseSettings,
     env_prefix="DAILY_WRITING_",
     pyproject_toml_table_header=("tool", "daily-writing"),
     case_sensitive=False,
 ):
-    # Dirs
-    source_dir: Annotated[
-        pydantic.DirectoryPath,
-        pydantic.Field(
-            description="Directory containing the source files for the website"
-        ),
-    ] = pathlib.Path(".")
-
-    build_dir: Annotated[
-        pydantic.DirectoryPath | pydantic.NewPath,
-        pydantic.Field(
-            description="Directory in which to place the resulting website. If it exists, it will be emptied at the start of the run."
-        ),
-    ] = pathlib.Path("_build")
-
-    cache_dir: Annotated[
-        pydantic.DirectoryPath | pydantic.NewPath,
-        pydantic.Field(
-            description="Directory containing cached assets to simplify subsequent builds."
-        ),
-    ] = pathlib.Path("_cache")
-
-    source_static_dir: Annotated[
-        pydantic.DirectoryPath,
-        pydantic.Field(
-            description="Path where the static assets are stored. All files in here will be copied as-is to the build static dir."
-        ),
-    ] = pathlib.Path("static")
-
-    build_static_dir: Annotated[
-        pathlib.Path,
-        pydantic.Field(
-            description="Path to which static should be stored in the build dir. Will likely be a part of the URL for static files."
-        ),
-    ] = pathlib.Path("static")
-
-    build_cms_dir: Annotated[
-        pathlib.Path,
-        pydantic.Field(
-            description="Path to which the CMS will be written to. Will likely be the URL path of the CMS."
-        ),
-    ] = pathlib.Path("admin")
-
-    fonts_css_filename: Annotated[
-        str,
-        pydantic.Field(
-            description="Name of the generated css file containing font definitions."
-        ),
-    ] = "fonts.css"
-
-    # Cutoff date
-    max_date: datetime.date = pydantic.Field(
-        default_factory=lambda data: datetime.datetime.now(
-            tz=zoneinfo.ZoneInfo(data.get("timezone", LOCAL_TIMEZONE))
-        ).date(),
-        description="Writings for dates strictly after this date will be ignored in build. Defaults to today.",
-    )
-
     # Metadata
     site_name: Annotated[
         str,
-        pydantic.Field(description="Name of the website. Appears in multiple places."),
+        pydantic.Field(
+            description="Name of the website. Appears in multiple places.",
+            default_factory=_default_site_name,
+        ),
     ]
     description: Annotated[
-        str,
-        pydantic.Field(description="Description of the website."),
+        str | None,
+        pydantic.Field(
+            description="Description of the website.",
+            default_factory=_default_description,
+        ),
         CMSFieldOverride(widget="text"),
     ]
     copyright: Annotated[
@@ -173,13 +158,18 @@ class Settings(
         pydantic.Field(description="Copyright mention, appears in the footer"),
     ] = None
     author: Annotated[
-        str, pydantic.Field(description="Author name, appears in multiple places.")
+        str | None,
+        pydantic.Field(
+            description="Author name, appears in the RSS feed.",
+            default_factory=_default_author,
+        ),
     ]
     locale: Annotated[
         i18n.Locale,
         pydantic.BeforeValidator(validate_locale),
         pydantic.Field(
-            description="Website language (used for the HTML declaration and the location of dates). Format: BCP47 (e.g. en-US)"
+            description="Website language (used for the HTML declaration and the location of dates). Format: BCP47 (e.g. en-US)",
+            default_factory=babel.Locale.default,
         ),
         CMSFieldOverride(
             pattern=[
@@ -202,9 +192,10 @@ class Settings(
     timezone: Annotated[
         str,
         pydantic.Field(
-            description="Name of the timezone (used to determine midnight, which controls when new writings appear for the current day)"
+            description="Name of the timezone (used to determine midnight, which controls when new writings appear for the current day)",
+            default_factory=lambda: tzlocal.get_localzone().key,
         ),
-    ] = LOCAL_TIMEZONE
+    ]
     first_day_of_week: Annotated[
         DayOfWeek,
         pydantic.Field(
@@ -365,6 +356,64 @@ class Settings(
         ),
         CMSFieldOverride(widget="hidden"),
     ] = "latest"
+
+    # Dirs
+    source_dir: Annotated[
+        pydantic.DirectoryPath,
+        pydantic.Field(
+            description="Directory containing the source files for the website"
+        ),
+    ] = pathlib.Path(".")
+
+    build_dir: Annotated[
+        pydantic.DirectoryPath | pydantic.NewPath,
+        pydantic.Field(
+            description="Directory in which to place the resulting website. If it exists, it will be emptied at the start of the run."
+        ),
+    ] = pathlib.Path("_build")
+
+    cache_dir: Annotated[
+        pydantic.DirectoryPath | pydantic.NewPath,
+        pydantic.Field(
+            description="Directory containing cached assets to simplify subsequent builds."
+        ),
+    ] = pathlib.Path("_cache")
+
+    source_static_dir: Annotated[
+        pathlib.Path,
+        pydantic.Field(
+            description="Path where the static assets are stored. All files in here will be copied as-is to the build static dir."
+        ),
+    ] = pathlib.Path("static")
+
+    build_static_dir: Annotated[
+        pathlib.Path,
+        pydantic.Field(
+            description="Path to which static should be stored in the build dir. Will likely be a part of the URL for static files."
+        ),
+    ] = pathlib.Path("static")
+
+    build_cms_dir: Annotated[
+        pathlib.Path,
+        pydantic.Field(
+            description="Path to which the CMS will be written to. Will likely be the URL path of the CMS."
+        ),
+    ] = pathlib.Path("admin")
+
+    fonts_css_filename: Annotated[
+        str,
+        pydantic.Field(
+            description="Name of the generated css file containing font definitions."
+        ),
+    ] = "fonts.css"
+
+    # Cutoff date
+    max_date: datetime.date = pydantic.Field(
+        default_factory=lambda data: datetime.datetime.now(
+            tz=zoneinfo.ZoneInfo(data.get("timezone") or tzlocal.get_localzone().key)
+        ).date(),
+        description="Writings for dates strictly after this date will be ignored in build. Defaults to today.",
+    )
 
     @property
     def build_static_path(self) -> str:

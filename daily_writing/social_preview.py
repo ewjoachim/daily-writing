@@ -26,7 +26,7 @@ class SocialPreviewContents:
 
     top_line: str
     title: str
-    description: str
+    description: str | None
     logo: pathlib.Path | None
     date: str | None  # this might not strictly be a date
     colors: list[str]
@@ -92,7 +92,7 @@ def generate_social_preview(contents: SocialPreviewContents) -> io.BytesIO:
 
     char_width = 57
 
-    text = "\n".join(textwrap.wrap(contents.description, width=char_width))
+    text = "\n".join(textwrap.wrap(contents.description or "", width=char_width))
     lines = text.count("\n") + 1
     height = 36 * lines + 4 * (lines - 1)
     draw.text((100, 600 - height), text, font=text_variant, fill="#ced6dd")
