@@ -19,11 +19,11 @@ from . import settings as settings_module
 logger = logging.getLogger("daily_writing")
 
 
-def serve(settings: settings_module.Settings):
+def serve(settings: settings_module.CLISettings):
     asyncio.run(serve_async(settings=settings))
 
 
-async def serve_async(settings: settings_module.Settings):
+async def serve_async(settings: settings_module.CLISettings):
     if not settings.serve:
         raise NotImplementedError()
 

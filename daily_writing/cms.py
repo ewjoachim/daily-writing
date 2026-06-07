@@ -11,7 +11,9 @@ from collections.abc import Iterator
 import httpx
 import pydantic.fields
 import pydantic_extra_types.color
+from pydantic import TypeAdapter
 from pydantic import dataclasses as pdataclasses
+from pydantic_core import PydanticUndefined
 from pydantic_settings.sources.types import _CliSubCommand  # noqa: PLC2701
 from typing_extensions import TypeForm
 
@@ -23,34 +25,11 @@ from . import settings as settings_module
 logger = logging.getLogger("daily_writing")
 
 
-class _Missing:
-    pass
-
-
-# TODO py3.15: sentinel()
-_MISSING = _Missing()
-
-
-def _serialize_default(value: typing.Any) -> typing.Any:
+def _serialize_default(value: typing.Any, annotation: typing.Any) -> typing.Any:
     """Convert a Python default value to a JSON-serializable Sveltia default value."""
-    if value is _MISSING:
+    if value is PydanticUndefined:
         return None
-    if isinstance(value, _Missing):
-        return None
-    if isinstance(value, enum.Enum):
-        return value.value
-    if isinstance(value, pathlib.PurePath):
-        try:
-            return str(value.relative_to(pathlib.Path.cwd()))
-        except ValueError:
-            return str(value)
-    if isinstance(value, datetime.date):
-        return value.isoformat()
-    if isinstance(value, pydantic_extra_types.color.Color):
-        return value.as_hex(format="long")
-    if isinstance(value, pydantic.BaseModel):
-        return value.model_dump(mode="json")
-    return value
+    return TypeAdapter(annotation).dump_python(value, mode="json")
 
 
 def _is_empty_default(value: typing.Any) -> bool:
@@ -84,7 +63,7 @@ class Field:
     description: str
     required: bool
     override: settings_module.CMSFieldOverride
-    default: typing.Any = _MISSING
+    default: typing.Any = PydanticUndefined
 
     @classmethod
     def from_pydantic(
@@ -102,7 +81,7 @@ class Field:
         default = (
             field_info.default
             if not field_info.is_required() and field_info.default_factory is None
-            else _MISSING
+            else PydanticUndefined
         )
         return cls(
             name=name,
@@ -114,7 +93,9 @@ class Field:
         )
 
     def to_sveltia(self) -> dict[str, typing.Any]:
-        serialized_default = _serialize_default(self.default)
+        serialized_default = _serialize_default(
+            self.default, annotation=self.annotation
+        )
         result: dict[str, typing.Any] = {
             "name": self.name,
             "label": self.name.replace("_", " ").title(),
@@ -255,7 +236,11 @@ def get_cms_config(settings: settings_module.Settings) -> str:
         "singletons": [get_config_collection()],
         "collections": [get_writings_collection()],
         "site_url": str(settings.site_full_url),
-        "logo": {"src": f"/{settings.source_static_dir / settings.logo}"},
+        "logo": (
+            {"src": f"/{settings.source_static_dir / settings.logo}"}
+            if settings.logo
+            else None
+        ),
         "app_title": f"{settings.site_name} - Admin",
         "editor": {"preview": False},
         "output": {

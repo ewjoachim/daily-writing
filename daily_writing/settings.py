@@ -1,7 +1,9 @@
 import datetime
 import enum
+import functools
 import os
 import pathlib
+import tomllib
 import zoneinfo
 from typing import Annotated, Any, Literal, override
 
@@ -41,9 +43,6 @@ class ColorCycle(pydantic.BaseModel):
         return hex_color(self.colors[i % len(self.colors)])
 
 
-LOCAL_TIMEZONE = tzlocal.get_localzone().key
-
-
 class Build(pydantic.BaseModel):
     pass
 
@@ -74,6 +73,9 @@ def validate_locale(value: Any) -> Any:
     if not value:
         return value
 
+    if isinstance(value, i18n.Locale):
+        return value
+
     try:
         return i18n.Locale.from_string(value)
     except i18n.LocaleError as exc:
@@ -94,91 +96,97 @@ class DayOfWeek(enum.StrEnum):
         return list(type(self)).index(self)
 
 
+@functools.cache
+def _pyproject_project() -> dict[str, Any]:
+    """Read and cache the [project] section from pyproject.toml."""
+    try:
+        data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+        return data.get("project", {})
+    except FileNotFoundError, tomllib.TOMLDecodeError:
+        return {}
+
+
+def _slug_to_title(slug: str) -> str:
+    return slug.replace("-", " ").replace("_", " ").title()
+
+
+def _default_site_name(data: dict[str, Any]) -> str:
+    project = _pyproject_project()
+    name = project.get("name")
+    if name:
+        return _slug_to_title(name)
+    src_dir = data.get("source_dir", pathlib.Path("."))
+    return _slug_to_title(pathlib.Path(str(src_dir)).resolve().name)
+
+
+def _default_description() -> str | None:
+    return _pyproject_project().get("description")
+
+
+def _default_author() -> str | None:
+    authors = _pyproject_project().get("authors", [])
+    if authors:
+        return authors[0].get("name")
+    return None
+
+
+@functools.cache
+def _default_full_server_url() -> yarl.URL:
+    project = _pyproject_project()
+    urls = project.get("urls", {})
+    homepage = urls.get("Homepage") or urls.get("homepage")
+    if homepage:
+        return yarl.URL(homepage)
+    return yarl.URL("http://localhost:8000")
+
+
+def _default_server_url() -> pydantic.networks.HttpUrl:
+    return pydantic.networks.HttpUrl(str(_default_full_server_url().with_path("")))
+
+
+def _default_base_path() -> str:
+    return _default_full_server_url().path[1:].rstrip("/")
+
+
 class Settings(
     pydantic_settings.BaseSettings,
     env_prefix="DAILY_WRITING_",
     pyproject_toml_table_header=("tool", "daily-writing"),
     case_sensitive=False,
 ):
-    # Dirs
-    source_dir: Annotated[
-        pydantic.DirectoryPath,
-        pydantic.Field(
-            description="Directory containing the source files for the website"
-        ),
-    ] = pathlib.Path.cwd()
-
-    build_dir: Annotated[
-        pydantic.DirectoryPath | pydantic.NewPath,
-        pydantic.Field(
-            description="Directory in which to place the resulting website. If it exists, it will be emptied at the start of the run."
-        ),
-    ] = pathlib.Path("_build")
-
-    cache_dir: Annotated[
-        pydantic.DirectoryPath | pydantic.NewPath,
-        pydantic.Field(
-            description="Directory containing cached assets to simplify subsequent builds."
-        ),
-    ] = pathlib.Path("_cache")
-
-    source_static_dir: Annotated[
-        pydantic.DirectoryPath,
-        pydantic.Field(
-            description="Path where the static assets are stored. All files in here will be copied as-is to the build static dir."
-        ),
-    ] = pathlib.Path("static")
-
-    build_static_dir: Annotated[
-        pathlib.Path,
-        pydantic.Field(
-            description="Path to which static should be stored in the build dir. Will likely be a part of the URL for static files."
-        ),
-    ] = pathlib.Path("static")
-
-    build_cms_dir: Annotated[
-        pathlib.Path,
-        pydantic.Field(
-            description="Path to which the CMS will be written to. Will likely be the URL path of the CMS."
-        ),
-    ] = pathlib.Path("admin")
-
-    fonts_css_filename: Annotated[
-        str,
-        pydantic.Field(
-            description="Name of the generated css file containing font definitions."
-        ),
-    ] = "fonts.css"
-
-    # Cutoff date
-    max_date: datetime.date = pydantic.Field(
-        default_factory=lambda data: datetime.datetime.now(
-            tz=zoneinfo.ZoneInfo(data.get("timezone", LOCAL_TIMEZONE))
-        ).date(),
-        description="Writings for dates strictly after this date will be ignored in build. Defaults to today.",
-    )
-
     # Metadata
     site_name: Annotated[
         str,
-        pydantic.Field(description="Name of the website. Appears in multiple places."),
+        pydantic.Field(
+            description="Name of the website. Appears in multiple places.",
+            default_factory=_default_site_name,
+        ),
     ]
     description: Annotated[
-        str,
-        pydantic.Field(description="Description of the website."),
+        str | None,
+        pydantic.Field(
+            description="Description of the website.",
+            default_factory=_default_description,
+        ),
         CMSFieldOverride(widget="text"),
     ]
     copyright: Annotated[
-        str, pydantic.Field(description="Copyright mention, appears in the footer")
-    ]
+        str | None,
+        pydantic.Field(description="Copyright mention, appears in the footer"),
+    ] = None
     author: Annotated[
-        str, pydantic.Field(description="Author name, appears in multiple places.")
+        str | None,
+        pydantic.Field(
+            description="Author name, appears in the RSS feed.",
+            default_factory=_default_author,
+        ),
     ]
     locale: Annotated[
         i18n.Locale,
         pydantic.BeforeValidator(validate_locale),
         pydantic.Field(
-            description="Website language (used for the HTML declaration and the location of dates). Format: BCP47 (e.g. en-US)"
+            description="Website language (used for the HTML declaration and the location of dates). Format: BCP47 (e.g. en-US)",
+            default_factory=i18n.Locale.default,
         ),
         CMSFieldOverride(
             pattern=[
@@ -201,9 +209,10 @@ class Settings(
     timezone: Annotated[
         str,
         pydantic.Field(
-            description="Name of the timezone (used to determine midnight, which controls when new writings appear for the current day)"
+            description="Name of the timezone (used to determine midnight, which controls when new writings appear for the current day)",
+            default_factory=lambda: tzlocal.get_localzone().key,
         ),
-    ] = LOCAL_TIMEZONE
+    ]
     first_day_of_week: Annotated[
         DayOfWeek,
         pydantic.Field(
@@ -215,21 +224,23 @@ class Settings(
     server_url: Annotated[
         pydantic.networks.HttpUrl,
         pydantic.Field(
-            description="Main URL where the website is deployed. (e.g. https://writober.ewjoach.im/)"
+            description="Root server URL. (e.g. https://writober.ewjoach.im/)",
+            default_factory=_default_server_url,
         ),
     ]
     base_path: Annotated[
         str,
         pydantic.Field(
-            description="Under server_url, path to the root of the website (no leading slash)."
+            description="Under server_url, path to the root of the website (no leading slash).",
+            default_factory=_default_base_path,
         ),
-    ] = ""
+    ]
     repository_url: Annotated[
-        str,
+        str | None,
         pydantic.Field(
             description="URL where the sources of the website are available."
         ),
-    ]
+    ] = None
     repository_file_url_prefix: Annotated[
         str,
         pydantic.Field(
@@ -250,14 +261,14 @@ class Settings(
             description="List of colors used throughout a given month. Will cycle if there are less than the number of days in said month. Should be harmonious if displayed as a grid of width 7 or less."
         ),
         CMSFieldOverride(field={"label": "Color", "required": True}),
-    ]
+    ] = [pydantic_extra_types.color.Color("#ffffff")]
     index_colors: Annotated[
         list[pydantic_extra_types.color.Color],
         pydantic.Field(
             description="The index page will have a color bar containing a gradient of the colors defined here from top to bottom."
         ),
         CMSFieldOverride(field={"label": "Color", "required": True}),
-    ]
+    ] = [pydantic_extra_types.color.Color("#ffffff")]
     extra_css: Annotated[
         list[pydantic.FilePath],
         pydantic.Field(
@@ -281,18 +292,18 @@ class Settings(
         ),
     ] = pathlib.Path("social_previews")
     logo: Annotated[
-        pathlib.Path,
+        pathlib.Path | None,
         pydantic.Field(
             description="Website logo. Must be under the source static folder."
         ),
         CMSFieldOverride(widget="image"),
-    ]
+    ] = None
     icon_links: Annotated[
         list[IconLink],
         pydantic.Field(
             description="All the information necessary to build the <link> tags that describe different favicons (compatible with, e.g. https://favicon.io/)"
         ),
-    ]
+    ] = []
     # Fonts
     title_ttf_font: Annotated[
         pydantic.FilePath | list[pydantic.FilePath] | str | None,
@@ -318,24 +329,6 @@ class Settings(
             description='Fallback font for body. Either "serif" or "sans-serif".'
         ),
     ] = "sans-serif"
-
-    # Subcommands
-    build: Annotated[
-        pydantic_settings.CliSubCommand[Build],
-        pydantic.Field(description="Build the website"),
-    ]
-    serve: Annotated[
-        pydantic_settings.CliSubCommand[Serve],
-        pydantic.Field(
-            description="Start a local server that rebuilds the server on every change, with hot reload"
-        ),
-    ]
-    normalize: Annotated[
-        pydantic_settings.CliSubCommand[Normalize],
-        pydantic.Field(
-            description="Add frontmatter to writings that don't have it, extracting metadata from filename and content"
-        ),
-    ]
 
     verbosity: Annotated[
         Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
@@ -365,6 +358,64 @@ class Settings(
         CMSFieldOverride(widget="hidden"),
     ] = "latest"
 
+    # Dirs
+    source_dir: Annotated[
+        pydantic.DirectoryPath,
+        pydantic.Field(
+            description="Directory containing the source files for the website"
+        ),
+    ] = pathlib.Path(".")
+
+    build_dir: Annotated[
+        pydantic.DirectoryPath | pydantic.NewPath,
+        pydantic.Field(
+            description="Directory in which to place the resulting website. If it exists, it will be emptied at the start of the run."
+        ),
+    ] = pathlib.Path("_build")
+
+    cache_dir: Annotated[
+        pydantic.DirectoryPath | pydantic.NewPath,
+        pydantic.Field(
+            description="Directory containing cached assets to simplify subsequent builds."
+        ),
+    ] = pathlib.Path("_cache")
+
+    source_static_dir: Annotated[
+        pathlib.Path,
+        pydantic.Field(
+            description="Path where the static assets are stored. All files in here will be copied as-is to the build static dir."
+        ),
+    ] = pathlib.Path("static")
+
+    build_static_dir: Annotated[
+        pathlib.Path,
+        pydantic.Field(
+            description="Path to which static should be stored in the build dir. Will likely be a part of the URL for static files."
+        ),
+    ] = pathlib.Path("static")
+
+    build_cms_dir: Annotated[
+        pathlib.Path,
+        pydantic.Field(
+            description="Path to which the CMS will be written to. Will likely be the URL path of the CMS."
+        ),
+    ] = pathlib.Path("admin")
+
+    fonts_css_filename: Annotated[
+        str,
+        pydantic.Field(
+            description="Name of the generated css file containing font definitions."
+        ),
+    ] = "fonts.css"
+
+    # Cutoff date
+    max_date: datetime.date = pydantic.Field(
+        default_factory=lambda data: datetime.datetime.now(
+            tz=zoneinfo.ZoneInfo(data.get("timezone") or tzlocal.get_localzone().key)
+        ).date(),
+        description="Writings for dates strictly after this date will be ignored in build. Defaults to today.",
+    )
+
     @property
     def build_static_path(self) -> str:
         path = "/"
@@ -385,12 +436,52 @@ class Settings(
         return [hex_color(c) for c in self.index_colors]
 
     @property
-    def subcommand(self) -> Build | Serve | Normalize | None:
-        return pydantic_settings.get_subcommand(self)  # pyright: ignore[reportReturnType]
-
-    @property
     def github_token(self):
         return os.environ.get("GITHUB_TOKEN")
+
+    @override
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[pydantic_settings.BaseSettings],
+        init_settings: pydantic_settings.PydanticBaseSettingsSource,
+        env_settings: pydantic_settings.PydanticBaseSettingsSource,
+        dotenv_settings: pydantic_settings.PydanticBaseSettingsSource,
+        file_secret_settings: pydantic_settings.PydanticBaseSettingsSource,
+    ) -> tuple[pydantic_settings.PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            env_settings,
+            pydantic_settings.TomlConfigSettingsSource(
+                settings_cls,
+                toml_file="daily-writing.toml",
+            ),
+            pydantic_settings.PyprojectTomlConfigSettingsSource(settings_cls),
+        )
+
+
+class CLISettings(Settings):
+    # Subcommands
+    build: Annotated[
+        pydantic_settings.CliSubCommand[Build],
+        pydantic.Field(description="Build the website"),
+    ]
+    serve: Annotated[
+        pydantic_settings.CliSubCommand[Serve],
+        pydantic.Field(
+            description="Start a local server that rebuilds the server on every change, with hot reload"
+        ),
+    ]
+    normalize: Annotated[
+        pydantic_settings.CliSubCommand[Normalize],
+        pydantic.Field(
+            description="Add frontmatter to writings that don't have it, extracting metadata from filename and content"
+        ),
+    ]
+
+    @property
+    def subcommand(self) -> Build | Serve | Normalize | None:
+        return pydantic_settings.get_subcommand(self)  # pyright: ignore[reportReturnType]
 
     @override
     @classmethod
@@ -406,8 +497,8 @@ class Settings(
             init_settings,
             pydantic_settings.CliSettingsSource(
                 settings_cls,
-                cli_parse_args=True,
                 cli_kebab_case=True,
+                cli_parse_args=True,
                 cli_implicit_flags=True,
             ),
             env_settings,

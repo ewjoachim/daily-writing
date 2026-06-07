@@ -27,7 +27,21 @@ def layout(
     *,
     children: h.Node,
 ) -> h.Renderable:
-    repository_url = str(page_metadata.repository_url)
+    footer: list[str | h.Node] = []
+    if settings.copyright:
+        footer.append(settings.copyright)
+    if page_metadata.repository_url:
+        footer.append(
+            h.a(href=str(page_metadata.repository_url), target="_blank")[
+                settings.repository_link_name
+            ]
+        )
+    footer.append(
+        h.a(href=f"/{settings.atom_path}", target="_blank")[settings.feed_name]
+    )
+    footer_elements: list[str | h.Node] = ["|"] * (2 * len(footer) - 1)
+    # Intersperse | in list
+    footer_elements[::2] = footer
     return h.html(lang=i18n.get_bcp47(settings.locale))[
         head(),
         h.body[
@@ -38,16 +52,7 @@ def layout(
             ),
             h.div(".content", role="main")[
                 children,
-                h.div(".footer", role="contentinfo")[
-                    f"{settings.copyright} | ",
-                    h.a(href=repository_url, target="_blank")[
-                        settings.repository_link_name
-                    ],
-                    " | ",
-                    h.a(href=f"/{settings.atom_path}", target="_blank")[
-                        settings.feed_name
-                    ],
-                ],
+                h.div(".footer", role="contentinfo")[footer_elements],
             ],
             burger(),
         ],
@@ -124,7 +129,7 @@ def favicons(
             sizes=icon_link.sizes,
             href=f"/{settings.build_static_dir}/{icon_link.href}",
         )
-        for icon_link in settings.icon_links or []
+        for icon_link in settings.icon_links
     ]
 
 

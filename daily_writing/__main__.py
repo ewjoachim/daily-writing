@@ -13,7 +13,7 @@ class MissingExtraDependency(Exception):
 
 
 def main():
-    settings = settings_module.Settings()  # pyright: ignore[reportCallIssue]
+    settings = settings_module.CLISettings()  # pyright: ignore[reportCallIssue]
     logging.basicConfig(level=settings.verbosity)
     logging.getLogger("fontTools").setLevel("WARNING")
     logging.getLogger("markdown_it.rules_block").setLevel("INFO")
@@ -29,7 +29,7 @@ def main():
             raise NoCommandSelected("No command selected")
 
 
-def serve_website(settings: settings_module.Settings):
+def serve_website(settings: settings_module.CLISettings):
     try:
         from . import serve  # noqa: PLC0415
     except ImportError as exc:

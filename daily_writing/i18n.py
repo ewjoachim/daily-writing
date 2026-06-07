@@ -22,6 +22,10 @@ class Locale:
         except babel.UnknownLocaleError as exc:
             raise LocaleError(str(exc)) from exc
 
+    @classmethod
+    def default(cls) -> Self:
+        return cls(locale=babel.Locale.default())
+
 
 def full_date(dates: list[datetime.date], locale: Locale | None) -> str:
     return ", ".join(
