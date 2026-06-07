@@ -76,15 +76,15 @@ a {
     transform-origin: center;
 }
 
-.menu-open #burger .top-bar {
+body:has(#menu-toggle:checked) #burger .top-bar {
     transform: rotate(45deg) translateY(-.375em);
 }
 
-.menu-open #burger .middle-bar {
+body:has(#menu-toggle:checked) #burger .middle-bar {
     opacity: 0;
 }
 
-.menu-open #burger .bottom-bar {
+body:has(#menu-toggle:checked) #burger .bottom-bar {
     transform: rotate(-45deg) translateY(.375em);
 }
 
@@ -101,11 +101,11 @@ a {
     top: -100%;
 }
 
-.menu-open {
+body:has(#menu-toggle:checked) {
     overflow: hidden;
 }
 
-.menu-open #menu {
+body:has(#menu-toggle:checked) #menu {
     top: 0;
 }
 

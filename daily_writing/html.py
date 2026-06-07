@@ -28,10 +28,10 @@ def layout(
     children: h.Node,
 ) -> h.Renderable:
     repository_url = str(page_metadata.repository_url)
-
     return h.html(lang=i18n.get_bcp47(settings.locale))[
         head(),
         h.body[
+            h.input(type="checkbox", id="menu-toggle", hidden=True),
             nav(
                 base_path=settings.base_path,
                 site_name=settings.site_name,
@@ -59,11 +59,6 @@ ws.onmessage = () => window.location.reload();
         ]
         if inject_hot_reload_js
         else None,
-        h.script[
-            markupsafe.Markup("""
-function toggleMenu(){document.querySelector("body").classList.toggle("menu-open")}
-""")
-        ],
     ]
 
 
@@ -208,9 +203,9 @@ def burger() -> h.Node:
         "stroke_linejoin": "round",
     }
     return [
-        h.div(
+        h.label(
             "#burger.svg-button",
-            onclick="toggleMenu()",
+            for_="menu-toggle",
         )[
             h.svg(
                 width="2em",
@@ -524,7 +519,6 @@ def index_page(
                         h.h4[
                             h.a(
                                 href=f"#month-{year}-{month}",
-                                onclick="""toggleMenu()""",
                             )[
                                 i18n.month_date(
                                     year=year,
