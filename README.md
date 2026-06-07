@@ -110,6 +110,7 @@ through: `daily-writing -h`. Feel free to consult [daily-writing.toml](https://g
 > - Site name will use the name of the project in `pyproject.toml` or the current folder
 > - Site description and author will use equivalent fields in `pyproject.toml`
 > - Server URL and base path will use Homepage URL in `pyproject.toml` (default to localhost, which only makes sense locally)
+> - Repository URL will be read from standard environment variables if running in GitHub Actions, or from Repository metadata in `pyproject.toml`.
 
 > [!NOTE] There is one extra configuration element: setting the `GITHUB_TOKEN`
 > environment variable will help you avoid rate limiting to GitHub's API. It's not added
