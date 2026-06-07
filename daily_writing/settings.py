@@ -140,6 +140,16 @@ def _default_full_server_url() -> yarl.URL:
     return yarl.URL("http://localhost:8000")
 
 
+def _default_repository_url() -> str:
+    if (repo := os.environ.get("GITHUB_REPOSITORY")) and (
+        github_server := os.environ.get("GITHUB_SERVER_URL")
+    ):
+        return str(yarl.URL(github_server) / repo)
+    project = _pyproject_project()
+    urls = project.get("urls", {})
+    return urls.get("Repository") or urls.get("Repository")
+
+
 def _default_server_url() -> pydantic.networks.HttpUrl:
     return pydantic.networks.HttpUrl(str(_default_full_server_url().with_path("")))
 
@@ -238,9 +248,10 @@ class Settings(
     repository_url: Annotated[
         str | None,
         pydantic.Field(
-            description="URL where the sources of the website are available."
+            description="URL where the sources of the website are available.",
+            default_factory=_default_repository_url,
         ),
-    ] = None
+    ]
     repository_file_url_prefix: Annotated[
         str,
         pydantic.Field(
