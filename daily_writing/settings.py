@@ -293,7 +293,7 @@ class Settings(
         pydantic.Field(
             description="All the information necessary to build the <link> tags that describe different favicons (compatible with, e.g. https://favicon.io/)"
         ),
-    ]
+    ] = []
     # Fonts
     title_ttf_font: Annotated[
         pydantic.FilePath | list[pydantic.FilePath] | str | None,
