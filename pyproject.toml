@@ -56,11 +56,7 @@ daily-writing = "daily_writing.__main__:main"
 
 [dependency-groups]
 lint = ["basedpyright>=1.39.6", "ruff>=0.13.3"]
-test = [
-    "pytest>=0.13.3",
-    "pytest-cov>=7.1.0",
-    "pytest-httpx>=0.36.2",
-]
+test = ["pytest>=0.13.3", "pytest-cov>=7.1.0", "pytest-httpx>=0.36.2"]
 
 
 [tool.basedpyright]
@@ -106,6 +102,7 @@ ignore = [
     "S324",    # https://docs.astral.sh/ruff/rules/hashlib-insecure-hash-function/
     "PLW1514", # https://docs.astral.sh/ruff/rules/unspecified-encoding/
     "PLR6301", # https://docs.astral.sh/ruff/rules/no-self-use/
+    "S101",    # https://docs.astral.sh/ruff/rules/assert/
 ]
 fixable = ["ALL"]
 unfixable = ["T201"]
