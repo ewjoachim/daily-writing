@@ -27,7 +27,7 @@ class SocialPreviewContents:
     top_line: str
     title: str
     description: str
-    logo: pathlib.Path
+    logo: pathlib.Path | None
     date: str | None  # this might not strictly be a date
     colors: list[str]
     body_font: io.BytesIO | pathlib.Path
@@ -76,9 +76,10 @@ def generate_social_preview(contents: SocialPreviewContents) -> io.BytesIO:
     text_variant.set_variation_by_name("Medium")
 
     draw.text((100, 50), contents.top_line, font=top_line_font, fill="#ced6dd")
-    logo = Image.open(contents.logo)
-    logo = logo.resize((36, 36))
-    image.alpha_composite(logo, (55, 50))
+    if contents.logo:
+        logo = Image.open(contents.logo)
+        logo = logo.resize((36, 36))
+        image.alpha_composite(logo, (55, 50))
 
     draw.text((100, 150), contents.title, font=title_variant, fill="#ced6dd")
 
