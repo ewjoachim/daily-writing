@@ -44,3 +44,11 @@ repos:
     rev: 1.39.3
     hooks:
       - id: basedpyright
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    # Zizmor version.
+    rev: v1.25.2
+    hooks:
+      # Run the linter.
+      - id: zizmor
+        args: ["--fix=all"]

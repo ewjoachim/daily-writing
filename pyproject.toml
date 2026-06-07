@@ -53,7 +53,12 @@ server = [
 daily-writing = "daily_writing.__main__:main"
 
 [dependency-groups]
-lint = ["ruff>=0.13.3"]
+lint = ["basedpyright>=1.39.6", "ruff>=0.13.3"]
+test = [
+    "pytest>=0.13.3",
+    "pytest-cov>=7.1.0",
+    "pytest-httpx>=0.36.2",
+]
 
 [tool.basedpyright]
 exclude = [".venv"]
@@ -103,4 +108,32 @@ fixable = ["ALL"]
 unfixable = ["T201"]
 extend-ignore = [
     "E501", # line too long
+]
+
+
+[tool.pytest.ini_options]
+addopts = [
+    "-vv",
+    "--strict-markers",
+    "-rfE",
+    "-m not benchmark",
+    "--cov=daily_writing",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-branch",
+]
+testpaths = ["tests"]
+filterwarnings = '''
+    error
+'''
+
+[tool.coverage.run]
+relative_files = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "raise NotImplementedError",
+    "coverage: exclude",
+    "if TYPE_CHECKING:",
+    "[ ]+\\.\\.\\.$",
 ]
