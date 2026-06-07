@@ -43,6 +43,7 @@ Daily Writing offers various features, such as:
   words that appear on the interface are configurable, so technically, we support all
   languages that Unicode supports.
 - If you rename a file but want to keep its original URL too, you can add aliases.
+- Site is 100% usable without javascript for users.
 
 Author's personal undying love of handcrafted open source and meticulous yak shaving
 went into this project. He likes to think that it shows.
