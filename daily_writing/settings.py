@@ -407,7 +407,6 @@ class Settings(
             init_settings,
             pydantic_settings.CliSettingsSource(
                 settings_cls,
-                cli_parse_args=True,
                 cli_kebab_case=True,
                 cli_implicit_flags=True,
             ),

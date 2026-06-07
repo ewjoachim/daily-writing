@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from . import build, normalize
 from . import settings as settings_module
@@ -13,7 +14,9 @@ class MissingExtraDependency(Exception):
 
 
 def main():
-    settings = settings_module.Settings()  # pyright: ignore[reportCallIssue]
+    settings = settings_module.Settings(_cli_parse_args=sys.argv[1:])  # pyright: ignore[reportCallIssue]
+    # _cli_parse_args is passed explicitly instead of baked into CliSettingsSource(cli_parse_args=True)
+    # so that instantiating Settings() without _cli_parse_args (e.g. in tests) does not read sys.argv.
     logging.basicConfig(level=settings.verbosity)
     logging.getLogger("fontTools").setLevel("WARNING")
     logging.getLogger("markdown_it.rules_block").setLevel("INFO")
