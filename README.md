@@ -12,7 +12,7 @@
 | daily\_writing/build\_context.py  |        4 |        4 |     0% |       1-6 |
 | daily\_writing/cms.py             |      128 |      128 |     0% |     1-284 |
 | daily\_writing/fonts.py           |      195 |      195 |     0% |     1-481 |
-| daily\_writing/html.py            |      114 |      114 |     0% |     1-549 |
+| daily\_writing/html.py            |      114 |      114 |     0% |     1-543 |
 | daily\_writing/i18n.py            |       24 |       24 |     0% |      1-46 |
 | daily\_writing/models.py          |      256 |      256 |     0% |     1-556 |
 | daily\_writing/normalize.py       |       44 |       44 |     0% |      1-98 |
