@@ -558,4 +558,4 @@ class PageMetadata:
     url_path: str | None
     description: str
     social_preview_url: str
-    repository_url: str
+    repository_url: str | None
