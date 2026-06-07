@@ -311,24 +311,6 @@ class Settings(
         ),
     ] = "sans-serif"
 
-    # Subcommands
-    build: Annotated[
-        pydantic_settings.CliSubCommand[Build],
-        pydantic.Field(description="Build the website"),
-    ]
-    serve: Annotated[
-        pydantic_settings.CliSubCommand[Serve],
-        pydantic.Field(
-            description="Start a local server that rebuilds the server on every change, with hot reload"
-        ),
-    ]
-    normalize: Annotated[
-        pydantic_settings.CliSubCommand[Normalize],
-        pydantic.Field(
-            description="Add frontmatter to writings that don't have it, extracting metadata from filename and content"
-        ),
-    ]
-
     verbosity: Annotated[
         Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
         pydantic.Field(
@@ -435,12 +417,52 @@ class Settings(
         return [hex_color(c) for c in self.index_colors]
 
     @property
-    def subcommand(self) -> Build | Serve | Normalize | None:
-        return pydantic_settings.get_subcommand(self)  # pyright: ignore[reportReturnType]
-
-    @property
     def github_token(self):
         return os.environ.get("GITHUB_TOKEN")
+
+    @override
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[pydantic_settings.BaseSettings],
+        init_settings: pydantic_settings.PydanticBaseSettingsSource,
+        env_settings: pydantic_settings.PydanticBaseSettingsSource,
+        dotenv_settings: pydantic_settings.PydanticBaseSettingsSource,
+        file_secret_settings: pydantic_settings.PydanticBaseSettingsSource,
+    ) -> tuple[pydantic_settings.PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            env_settings,
+            pydantic_settings.TomlConfigSettingsSource(
+                settings_cls,
+                toml_file="daily-writing.toml",
+            ),
+            pydantic_settings.PyprojectTomlConfigSettingsSource(settings_cls),
+        )
+
+
+class CLISettings(Settings):
+    # Subcommands
+    build: Annotated[
+        pydantic_settings.CliSubCommand[Build],
+        pydantic.Field(description="Build the website"),
+    ]
+    serve: Annotated[
+        pydantic_settings.CliSubCommand[Serve],
+        pydantic.Field(
+            description="Start a local server that rebuilds the server on every change, with hot reload"
+        ),
+    ]
+    normalize: Annotated[
+        pydantic_settings.CliSubCommand[Normalize],
+        pydantic.Field(
+            description="Add frontmatter to writings that don't have it, extracting metadata from filename and content"
+        ),
+    ]
+
+    @property
+    def subcommand(self) -> Build | Serve | Normalize | None:
+        return pydantic_settings.get_subcommand(self)  # pyright: ignore[reportReturnType]
 
     @override
     @classmethod
@@ -457,6 +479,7 @@ class Settings(
             pydantic_settings.CliSettingsSource(
                 settings_cls,
                 cli_kebab_case=True,
+                cli_parse_args=True,
                 cli_implicit_flags=True,
             ),
             env_settings,

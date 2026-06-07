@@ -1,5 +1,4 @@
 import logging
-import sys
 
 from . import build, normalize
 from . import settings as settings_module
@@ -14,9 +13,7 @@ class MissingExtraDependency(Exception):
 
 
 def main():
-    settings = settings_module.Settings(_cli_parse_args=sys.argv[1:])  # pyright: ignore[reportCallIssue]
-    # _cli_parse_args is passed explicitly instead of baked into CliSettingsSource(cli_parse_args=True)
-    # so that instantiating Settings() without _cli_parse_args (e.g. in tests) does not read sys.argv.
+    settings = settings_module.CLISettings()  # pyright: ignore[reportCallIssue]
     logging.basicConfig(level=settings.verbosity)
     logging.getLogger("fontTools").setLevel("WARNING")
     logging.getLogger("markdown_it.rules_block").setLevel("INFO")
@@ -32,7 +29,7 @@ def main():
             raise NoCommandSelected("No command selected")
 
 
-def serve_website(settings: settings_module.Settings):
+def serve_website(settings: settings_module.CLISettings):
     try:
         from . import serve  # noqa: PLC0415
     except ImportError as exc:

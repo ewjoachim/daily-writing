@@ -17,7 +17,7 @@ class NoAliasDumper(yaml.SafeDumper):
         return True
 
 
-def normalize(settings: settings_module.Settings) -> None:
+def normalize(settings: settings_module.CLISettings) -> None:
     """
     Add frontmatter to writings that don't have it (can be forced), extracting metadata
     from filename and content
