@@ -183,7 +183,7 @@ def nav(
     writings_by_year_month = models.Writing.by_year_month(list(writings))
     node_cache["nav"] = h.div("#menu.closed")[
         h.nav(role="navigation", aria_label="Main")[
-            h.h4[h.a(href=base_path)[site_name]],
+            h.h4[h.a(href=f"/{base_path}")[site_name]],
             [
                 nav_month(
                     year=year,
