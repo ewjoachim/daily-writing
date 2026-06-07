@@ -36,7 +36,7 @@ async def serve_async(settings: settings_module.Settings):
     async def websocket_endpoint(
         websocket: fastapi.WebSocket,
     ):
-        try:
+        try:  # noqa: PLW0717
             await websocket.accept()
             while True:
                 reload_task = asyncio.create_task(reload_event.wait())
