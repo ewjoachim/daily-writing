@@ -39,7 +39,7 @@ def layout(
     footer.append(
         h.a(href=f"/{settings.atom_path}", target="_blank")[settings.feed_name]
     )
-    footer_elements: list[str | h.Node] = ["|"] * (2 * len(footer) - 1)
+    footer_elements: list[str | h.Node] = [" | "] * (2 * len(footer) - 1)
     # Intersperse | in list
     footer_elements[::2] = footer
     return h.html(lang=i18n.get_bcp47(settings.locale))[
