@@ -21,7 +21,11 @@ class FeedEntryArtifact:
 
 
 class Feed:
-    def __init__(self, settings: settings_module.Settings):
+    def __init__(
+        self,
+        settings: settings_module.Settings,
+        updated: datetime.datetime | None = None,
+    ):
         self.feed_gen: FeedGenerator = FeedGenerator()
         self.feed_gen.id(str(settings.site_full_url))
         self.feed_gen.title(settings.site_name)
@@ -33,6 +37,7 @@ class Feed:
         self.feed_gen.language(str(settings.locale.locale))
         self.timezone: str = settings.timezone
         self.atom_path: pathlib.Path = settings.atom_path
+        self.feed_gen.updated(updated)
 
     def add_entry(self, item_id: str, title: str, link: str, date: datetime.date):
         entry = self.feed_gen.add_entry()  # pyright: ignore[reportUnknownVariableType]
