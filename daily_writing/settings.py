@@ -106,7 +106,7 @@ class Settings(
         pydantic.Field(
             description="Directory containing the source files for the website"
         ),
-    ] = pathlib.Path.cwd()
+    ] = pathlib.Path(".")
 
     build_dir: Annotated[
         pydantic.DirectoryPath | pydantic.NewPath,
