@@ -9,7 +9,7 @@ module-root = ""
 name = "daily-writing"
 version = "0.1.0"
 authors = [{ name = "Joachim Jablon", email = "ewjoachim@gmail.com" }]
-description = "Python-based static site generator for writing challenges"
+description = "Python-based static site generator for writing challenges (such as writober)"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -34,10 +34,12 @@ dependencies = [
     "langcodes>=3.5.1",
     # Markdown
     "python-frontmatter>=1.1.0",
+    "pyyaml>=6.0.3",
     "flowmark>=0.6.1",
     "markdown-it-py[plugins]>=4.0.0",
+    # URL management
     "yarl>=1.24.2",
-    "pyyaml>=6.0.3",
+    # General utilities
     "typing-extensions>=4.15.0",
 ]
 [project.optional-dependencies]
@@ -59,6 +61,7 @@ test = [
     "pytest-cov>=7.1.0",
     "pytest-httpx>=0.36.2",
 ]
+
 
 [tool.basedpyright]
 exclude = [".venv"]
