@@ -251,14 +251,14 @@ class Settings(
             description="List of colors used throughout a given month. Will cycle if there are less than the number of days in said month. Should be harmonious if displayed as a grid of width 7 or less."
         ),
         CMSFieldOverride(field={"label": "Color", "required": True}),
-    ]
+    ] = [pydantic_extra_types.color.Color("#ffffff")]
     index_colors: Annotated[
         list[pydantic_extra_types.color.Color],
         pydantic.Field(
             description="The index page will have a color bar containing a gradient of the colors defined here from top to bottom."
         ),
         CMSFieldOverride(field={"label": "Color", "required": True}),
-    ]
+    ] = [pydantic_extra_types.color.Color("#ffffff")]
     extra_css: Annotated[
         list[pydantic.FilePath],
         pydantic.Field(
