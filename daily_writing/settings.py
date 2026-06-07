@@ -7,7 +7,6 @@ import tomllib
 import zoneinfo
 from typing import Annotated, Any, Literal, override
 
-import babel
 import pydantic
 import pydantic.networks
 import pydantic_extra_types.color
@@ -169,7 +168,7 @@ class Settings(
         pydantic.BeforeValidator(validate_locale),
         pydantic.Field(
             description="Website language (used for the HTML declaration and the location of dates). Format: BCP47 (e.g. en-US)",
-            default_factory=babel.Locale.default,
+            default_factory=i18n.Locale.default,
         ),
         CMSFieldOverride(
             pattern=[
