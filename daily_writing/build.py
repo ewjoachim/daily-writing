@@ -134,10 +134,14 @@ def writing_artifacts(  # noqa: PLR0917
         social_preview_url=get_social_preview_url(
             path=social_preview_path, signature=social_preview_contents.signature
         ),
-        repository_url=utils.get_repository_url_for_file(
-            repository_url=settings.repository_url,
-            repository_file_url_prefix=settings.repository_file_url_prefix,
-            file=writing.md_path,
+        repository_url=(
+            utils.get_repository_url_for_file(
+                repository_url=settings.repository_url,
+                repository_file_url_prefix=settings.repository_file_url_prefix,
+                file=writing.md_path,
+            )
+            if settings.repository_url
+            else None
         ),
     )
 
@@ -223,10 +227,14 @@ def index_artifacts(
         url_path="",
         description=markdown_file.description,
         social_preview_url=social_preview_url,
-        repository_url=utils.get_repository_url_for_file(
-            repository_url=settings.repository_url,
-            repository_file_url_prefix=settings.repository_file_url_prefix,
-            file=markdown_file.md_path,
+        repository_url=(
+            utils.get_repository_url_for_file(
+                repository_url=settings.repository_url,
+                repository_file_url_prefix=settings.repository_file_url_prefix,
+                file=markdown_file.md_path,
+            )
+            if settings.repository_url
+            else None
         ),
     )
 

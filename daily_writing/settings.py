@@ -169,8 +169,9 @@ class Settings(
         CMSFieldOverride(widget="text"),
     ]
     copyright: Annotated[
-        str, pydantic.Field(description="Copyright mention, appears in the footer")
-    ]
+        str | None,
+        pydantic.Field(description="Copyright mention, appears in the footer"),
+    ] = None
     author: Annotated[
         str, pydantic.Field(description="Author name, appears in multiple places.")
     ]
@@ -225,11 +226,11 @@ class Settings(
         ),
     ] = ""
     repository_url: Annotated[
-        str,
+        str | None,
         pydantic.Field(
             description="URL where the sources of the website are available."
         ),
-    ]
+    ] = None
     repository_file_url_prefix: Annotated[
         str,
         pydantic.Field(
