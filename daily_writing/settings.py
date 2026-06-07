@@ -6,6 +6,7 @@ import zoneinfo
 from typing import Annotated, Any, Literal, override
 
 import pydantic
+import pydantic.networks
 import pydantic_extra_types.color
 import pydantic_settings
 import tzlocal
