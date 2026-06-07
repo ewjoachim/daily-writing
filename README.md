@@ -104,6 +104,13 @@ Examples:
 The easiest and most up-to-date way to learn about every configuration option is
 through: `daily-writing -h`. Feel free to consult [daily-writing.toml](https://github.com/ewjoachim/writober/blob/main/daily-writing.toml) for a working example.
 
+> [!TIP]
+> Some configuration elements can use natural defaults:
+> - Locale and timezone will use the machine default
+> - Site name will use the name of the project in `pyproject.toml` or the current folder
+> - Site description and author will use equivalent fields in `pyproject.toml`
+> - Server URL and base path will use Homepage URL in `pyproject.toml` (default to localhost, which only makes sense locally)
+
 > [!NOTE] There is one extra configuration element: setting the `GITHUB_TOKEN`
 > environment variable will help you avoid rate limiting to GitHub's API. It's not added
 > in the normal configuration elements to avoid accidentally committing it to your

@@ -145,7 +145,7 @@ def _default_server_url() -> pydantic.networks.HttpUrl:
 
 
 def _default_base_path() -> str:
-    return _default_full_server_url().path[1:]
+    return _default_full_server_url().path[1:].rstrip("/")
 
 
 class Settings(
