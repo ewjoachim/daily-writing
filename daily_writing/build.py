@@ -91,7 +91,8 @@ def static_artifacts(
 
     yield from [
         artifacts.FileArtifact(
-            path=p, source=source, destination=settings.build_static_dir
+            path=p.relative_to(source.parent),
+            source=p,
         )
         for source in [framework_static, project_static]
         for p in source.iterdir()

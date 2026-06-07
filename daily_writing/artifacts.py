@@ -49,10 +49,10 @@ class BytesArtifact:
 class FileArtifact:
     path: pathlib.Path
     source: pathlib.Path
-    destination: pathlib.Path
 
     def write(self, destination: pathlib.Path):
-        rel = self.path.relative_to(self.source)
-        destination = destination / self.destination / rel
-        destination.parent.mkdir(exist_ok=True, parents=True)
-        self.path.copy(destination)
+        if self.path.is_absolute():
+            raise ValueError("Only relative paths are accepted")
+
+        (destination / self.path).parent.mkdir(exist_ok=True, parents=True)
+        self.source.copy(destination / self.path)
