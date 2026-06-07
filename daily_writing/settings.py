@@ -130,6 +130,24 @@ def _default_author() -> str | None:
     return None
 
 
+@functools.cache
+def _default_full_server_url() -> yarl.URL:
+    project = _pyproject_project()
+    urls = project.get("urls", {})
+    homepage = urls.get("Homepage") or urls.get("homepage")
+    if homepage:
+        return yarl.URL(homepage)
+    return yarl.URL("http://localhost:8000")
+
+
+def _default_server_url() -> pydantic.networks.HttpUrl:
+    return pydantic.networks.HttpUrl(str(_default_full_server_url().with_path("")))
+
+
+def _default_base_path() -> str:
+    return _default_full_server_url().path[1:]
+
+
 class Settings(
     pydantic_settings.BaseSettings,
     env_prefix="DAILY_WRITING_",
@@ -206,15 +224,17 @@ class Settings(
     server_url: Annotated[
         pydantic.networks.HttpUrl,
         pydantic.Field(
-            description="Root server URL. (e.g. https://writober.ewjoach.im/)"
+            description="Root server URL. (e.g. https://writober.ewjoach.im/)",
+            default_factory=_default_server_url,
         ),
     ]
     base_path: Annotated[
         str,
         pydantic.Field(
-            description="Under server_url, path to the root of the website (no leading slash)."
+            description="Under server_url, path to the root of the website (no leading slash).",
+            default_factory=_default_base_path,
         ),
-    ] = ""
+    ]
     repository_url: Annotated[
         str | None,
         pydantic.Field(
