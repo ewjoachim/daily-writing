@@ -216,7 +216,7 @@ class Settings(
     server_url: Annotated[
         pydantic.networks.HttpUrl,
         pydantic.Field(
-            description="Main URL where the website is deployed. (e.g. https://writober.ewjoach.im/)"
+            description="Root server URL. (e.g. https://writober.ewjoach.im/)"
         ),
     ]
     base_path: Annotated[
