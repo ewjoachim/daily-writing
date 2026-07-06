@@ -36,18 +36,18 @@ repos:
       - id: sync
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.8.13
+    rev: 0.11.26
     hooks:
       - id: uv-lock
 
   - repo: https://github.com/DetachHead/basedpyright-prek-mirror
-    rev: 1.39.3
+    rev: 1.39.9
     hooks:
       - id: basedpyright
 
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     # Zizmor version.
-    rev: v1.25.2
+    rev: v1.26.1
     hooks:
       # Run the linter.
       - id: zizmor
