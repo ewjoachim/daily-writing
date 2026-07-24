@@ -108,7 +108,7 @@ def writing_artifacts(  # noqa: PLR0917
     node_cache: dict[str, Any],
 ) -> Iterable[artifacts.BaseArtifact | atom.FeedEntryArtifact]:
     top_line = [
-        settings.site_full_url.host or "",
+        settings.site_url.host or "",
         settings.site_name,
     ]
     colors = [settings.color_cycle[prompt.color_index] for prompt in writing.prompts]
@@ -155,7 +155,7 @@ def writing_artifacts(  # noqa: PLR0917
         node_cache=node_cache,
     )
 
-    link = str(settings.site_full_url / writing.url)
+    link = str(settings.site_url / writing.url)
 
     html_path = pathlib.Path(writing.url) / "index.html"
 
@@ -203,7 +203,7 @@ def index_artifacts(
     # Diagonal through the rectangle of colors
     colors = settings.index_colors_hex
     social_preview_contents = social_preview.SocialPreviewContents(
-        top_line=settings.site_full_url.host or "",
+        top_line=settings.site_url.host or "",
         title=settings.site_name,
         description=settings.description,
         logo=settings.source_static_dir / settings.logo if settings.logo else None,
@@ -216,7 +216,7 @@ def index_artifacts(
 
     social_preview_path = settings.social_preview_path / filename
 
-    markdown_file = models.MarkdownFile.from_md_path(md_path=pathlib.Path("README.md"))
+    markdown_file = models.MarkdownFile.from_md_path(md_path=settings.homepage_path)
 
     social_preview_url = get_social_preview_url(
         path=social_preview_path, signature=social_preview_contents.signature

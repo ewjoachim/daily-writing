@@ -233,9 +233,12 @@ def get_cms_config(settings: settings_module.Settings) -> str:
     config = {
         "media_folder": f"/{settings.build_static_dir}",
         "public_folder": f"/{settings.build_static_dir}",
-        "singletons": [get_config_collection()],
+        "singletons": [
+            get_config_singleton(),
+            get_homepage_singleton(homepage_path=settings.homepage_path),
+        ],
         "collections": [get_writings_collection()],
-        "site_url": str(settings.site_full_url),
+        "site_url": str(settings.site_url),
         "logo": (
             {"src": f"/{settings.source_static_dir / settings.logo}"}
             if settings.logo
@@ -251,12 +254,26 @@ def get_cms_config(settings: settings_module.Settings) -> str:
     return json.dumps(config, indent=2)
 
 
-def get_config_collection() -> dict[str, typing.Any]:
+def get_config_singleton() -> dict[str, typing.Any]:
     return {
         "name": "config",
         "label": "Settings",
         "file": "daily-writing.toml",
         "icon": "settings",
+        "fields": [
+            Field.from_pydantic(name=name, field_info=field_info).to_sveltia()
+            for name, field_info in settings_module.Settings.model_fields.items()
+            if not any(m is _CliSubCommand for m in field_info.metadata)
+        ],
+    }
+
+
+def get_homepage_singleton(homepage_path: pathlib.Path) -> dict[str, typing.Any]:
+    return {
+        "name": "homepage",
+        "label": "Home page",
+        "file": str(homepage_path),
+        "icon": "home",
         "fields": [
             Field.from_pydantic(name=name, field_info=field_info).to_sveltia()
             for name, field_info in settings_module.Settings.model_fields.items()

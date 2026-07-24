@@ -8,7 +8,6 @@ import zoneinfo
 from typing import Annotated, Any, Literal, override
 
 import pydantic
-import pydantic.networks
 import pydantic_extra_types.color
 import pydantic_settings
 import tzlocal
@@ -130,16 +129,6 @@ def _default_author() -> str | None:
     return None
 
 
-@functools.cache
-def _default_full_server_url() -> yarl.URL:
-    project = _pyproject_project()
-    urls = project.get("urls", {})
-    homepage = urls.get("Homepage") or urls.get("homepage")
-    if homepage:
-        return yarl.URL(homepage)
-    return yarl.URL("http://localhost:8000")
-
-
 def _default_repository_url() -> str:
     if (repo := os.environ.get("GITHUB_REPOSITORY")) and (
         github_server := os.environ.get("GITHUB_SERVER_URL")
@@ -148,14 +137,6 @@ def _default_repository_url() -> str:
     project = _pyproject_project()
     urls = project.get("urls", {})
     return urls.get("Repository") or urls.get("Repository")
-
-
-def _default_server_url() -> pydantic.networks.HttpUrl:
-    return pydantic.networks.HttpUrl(str(_default_full_server_url().with_path("")))
-
-
-def _default_base_path() -> str:
-    return _default_full_server_url().path[1:].rstrip("/")
 
 
 class Settings(
@@ -231,20 +212,11 @@ class Settings(
     ] = DayOfWeek.Monday
 
     # URLs
-    server_url: Annotated[
-        pydantic.networks.HttpUrl,
-        pydantic.Field(
-            description="Root server URL. (e.g. https://writober.ewjoach.im/)",
-            default_factory=_default_server_url,
-        ),
-    ]
-    base_path: Annotated[
-        str,
-        pydantic.Field(
-            description="Under server_url, path to the root of the website (no leading slash).",
-            default_factory=_default_base_path,
-        ),
-    ]
+    site_url: Annotated[
+        yarl.URL,
+        pydantic.Field(description="Website URL. (e.g. https://example.com/path)"),
+    ] = yarl.URL("http://localhost:8000")
+
     repository_url: Annotated[
         str | None,
         pydantic.Field(
@@ -264,6 +236,12 @@ class Settings(
             description="Path at which the Atom feed file will be written in the build directory (no leading slash)."
         ),
     ] = pathlib.Path("feed.atom")
+    homepage_path: Annotated[
+        pydantic.FilePath,
+        pydantic.Field(
+            description="Path to the file for which content will be used for the homepage of the site."
+        ),
+    ] = pathlib.Path("README.md")
 
     # Style
     colors: Annotated[
@@ -435,8 +413,12 @@ class Settings(
         return path
 
     @property
-    def site_full_url(self) -> yarl.URL:
-        return yarl.URL(str(self.server_url)) / self.base_path
+    def server_url(self) -> yarl.URL:
+        return self.server_url.origin()
+
+    @property
+    def base_path(self) -> yarl.URL:
+        return yarl.URL(self.site_url.path)
 
     @property
     def color_cycle(self) -> ColorCycle:
