@@ -72,10 +72,7 @@ You can always override those values by editing the frontmatter.
 
 ### Github
 
-- [Create a repository from the template](https://repo.new?template_name=daily-writing-template&template_owner=ewjoachim)
-- Adjust configuration with your details
-- Your repository is deployed through GitHub actions (`https://<username>.github.io/<repo name>`)
-- Write your stories
+- Go to [`daily-writing-template`](https://github.com/ewjoachim/daily-writing-template) and follow the instructions to get started (we'll take care of most of the heavy lifting for you).
 
 ### Elsewhere
 
