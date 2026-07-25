@@ -55,7 +55,7 @@ jobs:
           enable-cache: false
 
       - name: Run tests
-        run: uv run --group test pytest
+        run: uv run --all-groups --all-extras pytest
         env:
           COVERAGE_FILE: ".coverage.${{ matrix.python_version }}"
 
