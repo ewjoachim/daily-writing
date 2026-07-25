@@ -1,5 +1,4 @@
 import dataclasses
-import functools
 import hashlib
 import io
 import itertools
@@ -7,7 +6,6 @@ import logging
 import pathlib
 import textwrap
 
-import fontTools.ttLib.woff2
 import numpy as np
 import pydantic
 from PIL import Image, ImageDraw, ImageFont
@@ -45,14 +43,6 @@ class SocialPreviewContents:
         return hashlib.md5(b"").hexdigest()[:8]
 
 
-@functools.cache
-def get_ttf_font(path: pathlib.Path) -> ImageFont.FreeTypeFont:
-    bytes_obj = io.BytesIO()
-    fontTools.ttLib.woff2.decompress(path, bytes_obj)
-    bytes_obj.seek(0)
-    return ImageFont.FreeTypeFont(bytes_obj)
-
-
 def generate_social_preview(contents: SocialPreviewContents) -> io.BytesIO:
     image = Image.new(mode="RGBA", size=(1200, 630), color="#1d1d1d")
     draw = ImageDraw.Draw(image)
@@ -63,8 +53,8 @@ def generate_social_preview(contents: SocialPreviewContents) -> io.BytesIO:
     if isinstance(contents.title_font, io.BytesIO):
         contents.title_font.seek(0)
 
-    title_font = ImageFont.FreeTypeFont(contents.body_font)
-    body_font = ImageFont.FreeTypeFont(contents.title_font)
+    title_font = ImageFont.FreeTypeFont(contents.title_font)
+    body_font = ImageFont.FreeTypeFont(contents.body_font)
 
     top_line_font = title_font.font_variant(size=36)
     top_line_font.set_variation_by_name("SemiBold")
