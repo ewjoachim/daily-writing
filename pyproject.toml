@@ -63,7 +63,7 @@ test = ["pytest>=0.13.3", "pytest-cov>=7.1.0", "pytest-httpx>=0.36.2"]
 
 
 [tool.basedpyright]
-exclude = [".venv", "tests"]
+exclude = [".venv"]
 reportUnknownMemberType = false
 reportUnusedCallResult = false
 reportAny = false
@@ -71,6 +71,24 @@ reportExplicitAny = false
 reportUnreachable = false
 reportImplicitStringConcatenation = false
 reportMissingTypeStubs = false
+
+# Tests run untyped on purpose (fixtures, parametrize params, duck-typed mocks), so the
+# strict rule set floods them with false positives. "typeCheckingMode" isn't honoured in
+# an execution environment, so the equivalent lax rules are spelled out here instead.
+[[tool.basedpyright.executionEnvironments]]
+root = "tests"
+reportMissingParameterType = false
+reportUnknownParameterType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnknownLambdaType = false
+reportPrivateUsage = false
+reportUnusedFunction = false
+reportArgumentType = false
+reportIndexIssue = false
+reportOptionalSubscript = false
+reportOptionalMemberAccess = false
+reportAttributeAccessIssue = false
 
 [tool.ruff.lint]
 preview = true
@@ -113,6 +131,13 @@ fixable = ["ALL"]
 unfixable = ["T201"]
 extend-ignore = [
     "E501", # line too long
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "SLF001", # tests legitimately exercise module-private helpers
+    "S105",   # test fixtures use dummy secrets
+    "S106",
 ]
 
 

@@ -18,6 +18,10 @@ def main():
     logging.getLogger("fontTools").setLevel("WARNING")
     logging.getLogger("markdown_it.rules_block").setLevel("INFO")
 
+    run(settings=settings)
+
+
+def run(settings: settings_module.CLISettings):
     match settings.subcommand:
         case settings_module.Build():
             build.build(settings=settings)

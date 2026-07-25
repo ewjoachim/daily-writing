@@ -27,11 +27,16 @@ async def serve_async(settings: settings_module.CLISettings):
     if not settings.serve:
         raise NotImplementedError()
 
+    # Captured before model_copy() below, which would erase the narrowing above.
+    serve_config = settings.serve
+
     reload_event = asyncio.Event()
     stop_event = asyncio.Event()
 
     app = fastapi.FastAPI()
-    settings.site_url = yarl.URL("http://localhost:8000")
+    settings = settings.model_copy(
+        update={"site_url": yarl.URL("http://localhost:8000")}
+    )
 
     async def websocket_loop(websocket: fastapi.WebSocket):
         await websocket.accept()
@@ -88,7 +93,7 @@ async def serve_async(settings: settings_module.CLISettings):
             server.serve(),
             watchfiles.arun_process(
                 ".",
-                *settings.serve.additional_paths,
+                *serve_config.additional_paths,
                 watch_filter=watchfiles.DefaultFilter(
                     ignore_paths=[
                         settings.build_dir.absolute(),
