@@ -6,15 +6,9 @@ import logging
 import pathlib
 import types
 import typing
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 
 import httpx
-import pydantic.fields
-import pydantic_extra_types.color
-from pydantic import TypeAdapter
-from pydantic import dataclasses as pdataclasses
-from pydantic_core import PydanticUndefined
-from pydantic_settings.sources.types import _CliSubCommand  # noqa: PLC2701
 from typing_extensions import TypeForm
 
 from daily_writing import utils
@@ -23,13 +17,6 @@ from . import artifacts, models
 from . import settings as settings_module
 
 logger = logging.getLogger("daily_writing")
-
-
-def _serialize_default(value: typing.Any, annotation: typing.Any) -> typing.Any:
-    """Convert a Python default value to a JSON-serializable Sveltia default value."""
-    if value is PydanticUndefined:
-        return None
-    return TypeAdapter(annotation).dump_python(value, mode="json")
 
 
 def _is_empty_default(value: typing.Any) -> bool:
@@ -56,114 +43,74 @@ def clean_annotation(annotation: TypeForm[typing.Any]) -> TypeForm[typing.Any]:
     return annotation
 
 
-@pdataclasses.dataclass(config=pydantic.ConfigDict(arbitrary_types_allowed=True))
-class Field:
-    name: str
-    annotation: typing.Any
-    description: str
-    required: bool
-    override: settings_module.CMSFieldOverride
-    default: typing.Any = PydanticUndefined
+def to_sveltia(field: settings_module.Field) -> dict[str, typing.Any]:
+    serialized_default = field.serialized_default
+    result: dict[str, typing.Any] = {
+        "name": field.name,
+        "label": field.name.replace("_", " ").title(),
+        "required": field.required,
+        "hint": field.description,
+        **sveltia_type_attributes(field=field),
+        **field.override.kwargs,
+    }
+    if not _is_empty_default(serialized_default):
+        result["default"] = serialized_default
+    return result
 
-    @classmethod
-    def from_pydantic(
-        cls, name: str, field_info: pydantic.fields.FieldInfo
-    ) -> typing.Self:
-        """Pull the type annotation and optional CMS override out of a settings field."""
-        override = next(
-            (
-                meta
-                for meta in field_info.metadata
-                if isinstance(meta, settings_module.CMSFieldOverride)
-            ),
-            settings_module.CMSFieldOverride(),
-        )
-        default = (
-            field_info.default
-            if not field_info.is_required() and field_info.default_factory is None
-            else PydanticUndefined
-        )
-        return cls(
-            name=name,
-            annotation=field_info.annotation,
-            description=field_info.description or "",
-            required=field_info.is_required(),
-            override=override,
-            default=default,
-        )
 
-    def to_sveltia(self) -> dict[str, typing.Any]:
-        serialized_default = _serialize_default(
-            self.default, annotation=self.annotation
-        )
-        result: dict[str, typing.Any] = {
-            "name": self.name,
-            "label": self.name.replace("_", " ").title(),
-            "required": self.required,
-            "hint": self.description,
-            **self.sveltia_type_attributes(),
-            **self.override.kwargs,
-        }
-        if not _is_empty_default(serialized_default):
-            result["default"] = serialized_default
+def _annotation_to_sveltia(
+    annotation: typing.Any,
+    override: settings_module.CMSFieldOverride,
+    fields: Iterable[settings_module.Field] | None = None,
+) -> dict[str, typing.Any]:
+    """Infer the Sveltia widget name from a Python type annotation."""
+    annotation = clean_annotation(annotation)
+    origin = typing.get_origin(annotation)
+    args = typing.get_args(annotation)
+    if origin in {list, set, tuple}:
+        result: dict[str, typing.Any] = {"widget": "list"}
+
+        # A nested model surfaces as sub-fields; anything else recurses on its item.
+        if fields is not None:
+            result["fields"] = [to_sveltia(f) for f in fields]
+        else:
+            result["field"] = _annotation_to_sveltia(
+                args[0], override=settings_module.CMSFieldOverride()
+            ) | override.kwargs.pop("field", {})
+
         return result
 
-    @staticmethod
-    def _annotation_to_sveltia(
-        annotation: typing.Any,
-        override: settings_module.CMSFieldOverride,
-    ) -> dict[str, typing.Any]:
-        """Infer the Sveltia widget name from a Python type annotation."""
-        annotation = clean_annotation(annotation)
-        origin = typing.get_origin(annotation)
-        args = typing.get_args(annotation)
-        if origin in {list, set, tuple}:
-            result: dict[str, typing.Any] = {"widget": "list"}
+    if fields is not None:
+        return {"widget": "object", "fields": [to_sveltia(f) for f in fields]}
 
-            item_type = args[0]
+    if origin is typing.Literal:
+        return {"widget": "select", "options": [str(e) for e in args]}
+    if isinstance(annotation, type):
+        if issubclass(annotation, bool):
+            return {"widget": "boolean"}
+        if issubclass(annotation, enum.Enum):
+            return {
+                "widget": "select",
+                "option": [{"label": e.name, "value": e.value} for e in annotation],
+            }
+        if issubclass(annotation, (int, float)):
+            return {"widget": "number"}
+        if issubclass(annotation, datetime.date):
+            return {
+                "widget": "datetime",
+                "format": "YYYY-MM-DD",
+                "date_format": "YYYY-MM-DD",
+                "time_format": False,
+            }
+        if issubclass(annotation, settings_module.Color):
+            return {"widget": "color"}
 
-            # Pydantic BaseModel -> generate a fields array
-            if isinstance(item_type, type) and issubclass(
-                item_type, pydantic.BaseModel
-            ):
-                result["fields"] = [
-                    Field.from_pydantic(name=name, field_info=field_info).to_sveltia()
-                    for name, field_info in item_type.model_fields.items()
-                ]
-            else:
-                result["field"] = Field._annotation_to_sveltia(
-                    item_type, override=settings_module.CMSFieldOverride()
-                ) | override.kwargs.pop("field", {})
+    return {"widget": "string"}
 
-            return result
 
-        if origin is typing.Literal:
-            return {"widget": "select", "options": [str(e) for e in args]}
-        if isinstance(annotation, type):
-            if issubclass(annotation, bool):
-                return {"widget": "boolean"}
-            if issubclass(annotation, enum.Enum):
-                return {
-                    "widget": "select",
-                    "option": [{"label": e.name, "value": e.value} for e in annotation],
-                }
-            if issubclass(annotation, (int, float)):
-                return {"widget": "number"}
-            if issubclass(annotation, datetime.date):
-                return {
-                    "widget": "datetime",
-                    "format": "YYYY-MM-DD",
-                    "date_format": "YYYY-MM-DD",
-                    "time_format": False,
-                }
-            if issubclass(annotation, pydantic_extra_types.color.Color):
-                return {"widget": "color"}
-
-        return {"widget": "string"}
-
-    def sveltia_type_attributes(self) -> dict[str, typing.Any]:
-        """Infer the Sveltia widget name from a field's Python type annotation."""
-        return self._annotation_to_sveltia(self.annotation, self.override)
+def sveltia_type_attributes(field: settings_module.Field) -> dict[str, typing.Any]:
+    """Infer the Sveltia widget name from a field's Python type annotation."""
+    return _annotation_to_sveltia(field.annotation, field.override, fields=field.fields)
 
 
 def cms_artifacts(
@@ -261,9 +208,8 @@ def get_config_singleton() -> dict[str, typing.Any]:
         "file": "daily-writing.toml",
         "icon": "settings",
         "fields": [
-            Field.from_pydantic(name=name, field_info=field_info).to_sveltia()
-            for name, field_info in settings_module.Settings.model_fields.items()
-            if not any(m is _CliSubCommand for m in field_info.metadata)
+            to_sveltia(field)
+            for field in settings_module.Field.from_model(settings_module.Settings)
         ],
     }
 
@@ -275,9 +221,8 @@ def get_homepage_singleton(homepage_path: pathlib.Path) -> dict[str, typing.Any]
         "file": str(homepage_path),
         "icon": "home",
         "fields": [
-            Field.from_pydantic(name=name, field_info=field_info).to_sveltia()
-            for name, field_info in settings_module.Settings.model_fields.items()
-            if not any(m is _CliSubCommand for m in field_info.metadata)
+            to_sveltia(field)
+            for field in settings_module.Field.from_model(settings_module.Settings)
         ],
     }
 
@@ -311,8 +256,10 @@ def get_writings_collection() -> dict[str, typing.Any]:
         "fields": [
             {"name": "body", "widget": "markdown"},
             *(
-                Field.from_pydantic(name=name, field_info=field_info).to_sveltia()
-                for name, field_info in models.MultiplePromptsFrontMatter.model_fields.items()
+                to_sveltia(field)
+                for field in settings_module.Field.from_model(
+                    models.MultiplePromptsFrontMatter
+                )
             ),
         ],
     }

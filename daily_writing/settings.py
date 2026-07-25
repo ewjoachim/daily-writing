@@ -4,16 +4,30 @@ import functools
 import os
 import pathlib
 import tomllib
+import types
+import typing
 import zoneinfo
-from typing import Annotated, Any, Literal, override
+from collections.abc import Iterable
+from typing import Annotated, Any, Literal, Self, override
 
 import pydantic
 import pydantic_extra_types.color
 import pydantic_settings
 import tzlocal
 import yarl
+from pydantic import dataclasses as pdataclasses
 
 from . import i18n
+
+# Re-exported so cms.py can recognise colour fields without importing pydantic.
+Color = pydantic_extra_types.color.Color
+
+
+class _Missing:
+    """Sentinel for a field with no default, kept independent of pydantic."""
+
+
+MISSING = _Missing()
 
 
 class CMSFieldOverride:
@@ -26,6 +40,95 @@ class CMSFieldOverride:
 
     def __init__(self, **kwargs: Any):
         self.kwargs: dict[str, Any] = kwargs
+
+
+def _referenced_model(annotation: Any) -> type[pydantic.BaseModel] | None:
+    """Return the pydantic model referenced by ``annotation``, directly or as a
+    collection/optional item, if any. Keeps model introspection out of cms.py."""
+    if isinstance(annotation, typing.TypeAliasType):
+        return _referenced_model(annotation.__value__)
+    origin = typing.get_origin(annotation)
+    args = typing.get_args(annotation)
+    if origin is typing.Annotated:
+        return _referenced_model(args[0]) if args else None
+    if origin is types.UnionType:
+        return next(
+            (
+                model
+                for arg in args
+                if arg is not type(None)
+                and (model := _referenced_model(arg)) is not None
+            ),
+            None,
+        )
+    if origin in {list, set, tuple}:
+        return _referenced_model(args[0]) if args else None
+    if isinstance(annotation, type) and issubclass(annotation, pydantic.BaseModel):
+        return annotation
+    return None
+
+
+@pdataclasses.dataclass(config=pydantic.ConfigDict(arbitrary_types_allowed=True))
+class Field:
+    """
+    Own class for abstracting pydantic while allowing introspection
+    """
+
+    name: str
+    annotation: Any
+    description: str
+    required: bool
+    override: CMSFieldOverride
+    default: Any = MISSING
+    fields: Iterable[Self] | None = None
+
+    @property
+    def has_default(self) -> bool:
+        return self.default is not MISSING
+
+    @property
+    def serialized_default(self) -> Any:
+        """The default as a JSON-serializable value, or None when there is none."""
+        if not self.has_default:
+            return None
+        return pydantic.TypeAdapter(self.annotation).dump_python(
+            self.default, mode="json"
+        )
+
+    @classmethod
+    def from_model(cls, model: type[pydantic.BaseModel]) -> list[Self]:
+        """Introspect a pydantic model into a flat list of ``Field``."""
+        return [
+            cls.from_field_info(name=name, field_info=field_info)
+            for name, field_info in model.model_fields.items()
+        ]
+
+    @classmethod
+    def from_field_info(cls, name: str, field_info: pydantic.fields.FieldInfo) -> Self:
+        """Build a single ``Field`` from a pydantic ``FieldInfo``."""
+        override = next(
+            (
+                meta
+                for meta in field_info.metadata
+                if isinstance(meta, CMSFieldOverride)
+            ),
+            CMSFieldOverride(),
+        )
+        default = (
+            field_info.default
+            if not field_info.is_required() and field_info.default_factory is None
+            else MISSING
+        )
+        model = _referenced_model(field_info.annotation)
+        return cls(
+            name=name,
+            annotation=field_info.annotation,
+            description=field_info.description or "",
+            required=field_info.is_required(),
+            override=override,
+            default=default,
+            fields=cls.from_model(model) if model is not None else None,
+        )
 
 
 class IconLink(pydantic.BaseModel):
@@ -411,10 +514,6 @@ class Settings(
         if self.build_static_dir:
             path += f"{self.build_static_dir}/"
         return path
-
-    @property
-    def server_url(self) -> yarl.URL:
-        return self.server_url.origin()
 
     @property
     def base_path(self) -> yarl.URL:
