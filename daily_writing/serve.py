@@ -31,7 +31,7 @@ async def serve_async(settings: settings_module.CLISettings):
     stop_event = asyncio.Event()
 
     app = fastapi.FastAPI()
-    settings.server_url = yarl.URL("http://localhost:8000")
+    settings.site_url = yarl.URL("http://localhost:8000")
 
     async def websocket_endpoint(
         websocket: fastapi.WebSocket,
