@@ -4,17 +4,30 @@ import functools
 import os
 import pathlib
 import tomllib
+import types
+import typing
 import zoneinfo
-from typing import Annotated, Any, Literal, override
+from collections.abc import Iterable
+from typing import Annotated, Any, Literal, Self, override
 
 import pydantic
-import pydantic.networks
 import pydantic_extra_types.color
 import pydantic_settings
 import tzlocal
 import yarl
+from pydantic import dataclasses as pdataclasses
 
 from . import i18n
+
+# Re-exported so cms.py can recognise colour fields without importing pydantic.
+Color = pydantic_extra_types.color.Color
+
+
+class _Missing:
+    """Sentinel for a field with no default, kept independent of pydantic."""
+
+
+MISSING = _Missing()
 
 
 class CMSFieldOverride:
@@ -27,6 +40,95 @@ class CMSFieldOverride:
 
     def __init__(self, **kwargs: Any):
         self.kwargs: dict[str, Any] = kwargs
+
+
+def _referenced_model(annotation: Any) -> type[pydantic.BaseModel] | None:
+    """Return the pydantic model referenced by ``annotation``, directly or as a
+    collection/optional item, if any. Keeps model introspection out of cms.py."""
+    if isinstance(annotation, typing.TypeAliasType):
+        return _referenced_model(annotation.__value__)
+    origin = typing.get_origin(annotation)
+    args = typing.get_args(annotation)
+    if origin is typing.Annotated:
+        return _referenced_model(args[0]) if args else None
+    if origin is types.UnionType:
+        return next(
+            (
+                model
+                for arg in args
+                if arg is not type(None)
+                and (model := _referenced_model(arg)) is not None
+            ),
+            None,
+        )
+    if origin in {list, set, tuple}:
+        return _referenced_model(args[0]) if args else None
+    if isinstance(annotation, type) and issubclass(annotation, pydantic.BaseModel):
+        return annotation
+    return None
+
+
+@pdataclasses.dataclass(config=pydantic.ConfigDict(arbitrary_types_allowed=True))
+class Field:
+    """
+    Own class for abstracting pydantic while allowing introspection
+    """
+
+    name: str
+    annotation: Any
+    description: str
+    required: bool
+    override: CMSFieldOverride
+    default: Any = MISSING
+    fields: Iterable[Self] | None = None
+
+    @property
+    def has_default(self) -> bool:
+        return self.default is not MISSING
+
+    @property
+    def serialized_default(self) -> Any:
+        """The default as a JSON-serializable value, or None when there is none."""
+        if not self.has_default:
+            return None
+        return pydantic.TypeAdapter(self.annotation).dump_python(
+            self.default, mode="json"
+        )
+
+    @classmethod
+    def from_model(cls, model: type[pydantic.BaseModel]) -> list[Self]:
+        """Introspect a pydantic model into a flat list of ``Field``."""
+        return [
+            cls.from_field_info(name=name, field_info=field_info)
+            for name, field_info in model.model_fields.items()
+        ]
+
+    @classmethod
+    def from_field_info(cls, name: str, field_info: pydantic.fields.FieldInfo) -> Self:
+        """Build a single ``Field`` from a pydantic ``FieldInfo``."""
+        override = next(
+            (
+                meta
+                for meta in field_info.metadata
+                if isinstance(meta, CMSFieldOverride)
+            ),
+            CMSFieldOverride(),
+        )
+        default = (
+            field_info.default
+            if not field_info.is_required() and field_info.default_factory is None
+            else MISSING
+        )
+        model = _referenced_model(field_info.annotation)
+        return cls(
+            name=name,
+            annotation=field_info.annotation,
+            description=field_info.description or "",
+            required=field_info.is_required(),
+            override=override,
+            default=default,
+            fields=cls.from_model(model) if model is not None else None,
+        )
 
 
 class IconLink(pydantic.BaseModel):
@@ -130,16 +232,6 @@ def _default_author() -> str | None:
     return None
 
 
-@functools.cache
-def _default_full_server_url() -> yarl.URL:
-    project = _pyproject_project()
-    urls = project.get("urls", {})
-    homepage = urls.get("Homepage") or urls.get("homepage")
-    if homepage:
-        return yarl.URL(homepage)
-    return yarl.URL("http://localhost:8000")
-
-
 def _default_repository_url() -> str:
     if (repo := os.environ.get("GITHUB_REPOSITORY")) and (
         github_server := os.environ.get("GITHUB_SERVER_URL")
@@ -148,14 +240,6 @@ def _default_repository_url() -> str:
     project = _pyproject_project()
     urls = project.get("urls", {})
     return urls.get("Repository") or urls.get("Repository")
-
-
-def _default_server_url() -> pydantic.networks.HttpUrl:
-    return pydantic.networks.HttpUrl(str(_default_full_server_url().with_path("")))
-
-
-def _default_base_path() -> str:
-    return _default_full_server_url().path[1:].rstrip("/")
 
 
 class Settings(
@@ -231,20 +315,11 @@ class Settings(
     ] = DayOfWeek.Monday
 
     # URLs
-    server_url: Annotated[
-        pydantic.networks.HttpUrl,
-        pydantic.Field(
-            description="Root server URL. (e.g. https://writober.ewjoach.im/)",
-            default_factory=_default_server_url,
-        ),
-    ]
-    base_path: Annotated[
-        str,
-        pydantic.Field(
-            description="Under server_url, path to the root of the website (no leading slash).",
-            default_factory=_default_base_path,
-        ),
-    ]
+    site_url: Annotated[
+        yarl.URL,
+        pydantic.Field(description="Website URL. (e.g. https://example.com/path)"),
+    ] = yarl.URL("http://localhost:8000")
+
     repository_url: Annotated[
         str | None,
         pydantic.Field(
@@ -264,6 +339,12 @@ class Settings(
             description="Path at which the Atom feed file will be written in the build directory (no leading slash)."
         ),
     ] = pathlib.Path("feed.atom")
+    homepage_path: Annotated[
+        pydantic.FilePath,
+        pydantic.Field(
+            description="Path to the file for which content will be used for the homepage of the site."
+        ),
+    ] = pathlib.Path("README.md")
 
     # Style
     colors: Annotated[
@@ -435,8 +516,8 @@ class Settings(
         return path
 
     @property
-    def site_full_url(self) -> yarl.URL:
-        return yarl.URL(str(self.server_url)) / self.base_path
+    def base_path(self) -> yarl.URL:
+        return yarl.URL(self.site_url.path)
 
     @property
     def color_cycle(self) -> ColorCycle:

@@ -106,6 +106,8 @@ ignore = [
     "PLW1514", # https://docs.astral.sh/ruff/rules/unspecified-encoding/
     "PLR6301", # https://docs.astral.sh/ruff/rules/no-self-use/
     "S101",    # https://docs.astral.sh/ruff/rules/assert/
+    "S704",    # https://docs.astral.sh/ruff/rules/unsafe-markup-use/
+
 ]
 fixable = ["ALL"]
 unfixable = ["T201"]

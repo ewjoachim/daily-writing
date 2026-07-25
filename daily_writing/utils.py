@@ -62,7 +62,7 @@ def get_repository_url_for_file(
 
 
 def cache_bust():
-    return "".join(random.choices(string.digits + string.ascii_letters, k=12))  # noqa: S311
+    return "".join(random.choices(string.digits + string.ascii_letters, k=12))  # ruff:ignore[suspicious-non-cryptographic-random-usage]
 
 
 def date_grouper[T](

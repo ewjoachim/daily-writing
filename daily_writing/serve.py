@@ -6,10 +6,10 @@ from typing import Any, override
 
 import fastapi
 import fastapi.staticfiles
-import pydantic.networks
 import uvicorn
 import watchfiles
 import watchfiles.main
+import yarl
 
 from daily_writing import build_context
 
@@ -31,24 +31,27 @@ async def serve_async(settings: settings_module.CLISettings):
     stop_event = asyncio.Event()
 
     app = fastapi.FastAPI()
-    settings.server_url = pydantic.networks.HttpUrl("http://localhost:8000")
+    settings.site_url = yarl.URL("http://localhost:8000")
+
+    async def websocket_loop(websocket: fastapi.WebSocket):
+        await websocket.accept()
+        while True:
+            reload_task = asyncio.create_task(reload_event.wait())
+            stop_task = asyncio.create_task(stop_event.wait())
+            async for task in asyncio.as_completed([reload_task, stop_task]):
+                if task is reload_task:
+                    break
+                else:
+                    return
+            await asyncio.sleep(2)
+            await websocket.send_text(data="reload")
+            reload_event.clear()
 
     async def websocket_endpoint(
         websocket: fastapi.WebSocket,
     ):
-        try:  # noqa: PLW0717
-            await websocket.accept()
-            while True:
-                reload_task = asyncio.create_task(reload_event.wait())
-                stop_task = asyncio.create_task(stop_event.wait())
-                async for task in asyncio.as_completed([reload_task, stop_task]):
-                    if task is reload_task:
-                        break
-                    else:
-                        return
-                await asyncio.sleep(2)
-                await websocket.send_text(data="reload")
-                reload_event.clear()
+        try:
+            await websocket_loop(websocket=websocket)
         except fastapi.WebSocketDisconnect:
             pass
 

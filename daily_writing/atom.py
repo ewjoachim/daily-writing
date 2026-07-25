@@ -27,11 +27,11 @@ class Feed:
         updated: datetime.datetime | None = None,
     ):
         self.feed_gen: FeedGenerator = FeedGenerator()
-        self.feed_gen.id(str(settings.site_full_url))
+        self.feed_gen.id(str(settings.site_url))
         self.feed_gen.title(settings.site_name)
         if settings.author:
             self.feed_gen.author(name=settings.author)
-        self.feed_gen.link(href=str(settings.site_full_url), rel="self")
+        self.feed_gen.link(href=str(settings.site_url), rel="self")
         if settings.description:
             self.feed_gen.subtitle(settings.description)
         self.feed_gen.language(str(settings.locale.locale))
