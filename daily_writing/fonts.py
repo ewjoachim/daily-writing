@@ -439,7 +439,7 @@ def get_font_family(
             process_font(font_descriptor=font, static_path=settings.build_static_dir)
         )
 
-    main_font = sorted(fonts, key=lambda x: bool(x.style))[0]
+    main_font = min(fonts, key=lambda x: bool(x.style))
 
     return FontFamily(
         artifacts=font_artifacts,
