@@ -130,5 +130,8 @@ def test_make_font_css():
 
     assert artifact.path == pathlib.Path("fonts.css")
     assert "@font-face { font-family: 'X'; }" in artifact.contents
-    assert '"TitleFont", sans-serif' in artifact.contents
-    assert '"BodyFont", serif' in artifact.contents
+    # Body text uses the body font, headings use the title font.
+    body_block = artifact.contents.split("body {")[1].split("}")[0]
+    headings_block = artifact.contents.split("h4 {")[1].split("}")[0]
+    assert '"BodyFont", serif' in body_block
+    assert '"TitleFont", sans-serif' in headings_block

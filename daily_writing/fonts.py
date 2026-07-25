@@ -277,20 +277,20 @@ def make_font_css(
         title_font_families = [f'"{title_font_family.name}"', *title_font_families]
 
     body_font_families = [body_font_family.fallback]
-    if body_font_family:
+    if body_font_family.name:
         body_font_families = [f'"{body_font_family.name}"', *body_font_families]
 
     css_file.write(f"""{"\n\n".join(font_css_parts)}
 
 body {{
-    font-family: {", ".join(title_font_families)};
+    font-family: {", ".join(body_font_families)};
 }}
 
 h1,
 h2,
 h3,
 h4 {{
-    font-family: {", ".join(body_font_families)};
+    font-family: {", ".join(title_font_families)};
 }}""")
 
     return artifacts.TextArtifact(path=font_css_path, contents=css_file.getvalue())

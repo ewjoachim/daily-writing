@@ -53,8 +53,8 @@ def generate_social_preview(contents: SocialPreviewContents) -> io.BytesIO:
     if isinstance(contents.title_font, io.BytesIO):
         contents.title_font.seek(0)
 
-    title_font = ImageFont.FreeTypeFont(contents.body_font)
-    body_font = ImageFont.FreeTypeFont(contents.title_font)
+    title_font = ImageFont.FreeTypeFont(contents.title_font)
+    body_font = ImageFont.FreeTypeFont(contents.body_font)
 
     top_line_font = title_font.font_variant(size=36)
     top_line_font.set_variation_by_name("SemiBold")
