@@ -31,7 +31,7 @@ def main():
 
 def serve_website(settings: settings_module.CLISettings):
     try:
-        from . import serve  # noqa: PLC0415
+        from . import serve  # ruff:ignore[import-outside-top-level]
     except ImportError as exc:
         raise MissingExtraDependency(
             "Extra dependencies `server` is required for daily-writing serve (`pip install daily-writing[server]`)"
