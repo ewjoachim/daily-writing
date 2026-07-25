@@ -474,7 +474,7 @@ def writing_page(
                     h.main(
                         ".markdown",
                     )[
-                        markupsafe.Markup(  # noqa: S704
+                        markupsafe.Markup(
                             writing.markdown_file.get_html(
                                 title_fallback=writing.full_title
                             )
@@ -515,7 +515,7 @@ def index_page(
                     h.main(
                         ".markdown",
                     )[
-                        markupsafe.Markup(  # noqa: S704
+                        markupsafe.Markup(
                             markdown_file.get_html(title_fallback=settings.site_name)
                         ),
                     ],
