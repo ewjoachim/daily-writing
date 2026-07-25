@@ -99,7 +99,8 @@ def static_artifacts(
     ]
 
 
-def writing_artifacts(  # noqa: PLR0917
+def writing_artifacts(
+    *,
     settings: settings_module.Settings,
     context: build_context.BuildContext,
     writings: list[models.Writing],
