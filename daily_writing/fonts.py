@@ -1,16 +1,15 @@
-import dataclasses
 import functools
 import io
 import pathlib
 import sys
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable
 from typing import Literal
 
 import fontTools.ttLib
 import httpx
 import pydantic
-from fontTools.subset import Options, Subsetter
-from fontTools.ttLib import TTFont
+import tinycss2
+import tinycss2.ast
 from pydantic import dataclasses as pdataclasses
 
 from daily_writing import artifacts
@@ -18,15 +17,13 @@ from daily_writing import settings as settings_module
 
 type FontStyle = Literal["italic"] | None
 
-
-@pdataclasses.dataclass(
-    kw_only=True, config=pydantic.ConfigDict(arbitrary_types_allowed=True)
-)
-class FontDescriptor:
-    contents: io.BytesIO
-    name: str
-    style: FontStyle
-    css_parts: list[str] = dataclasses.field(default_factory=list)
+# Extensions we can serve verbatim, mapped to their CSS ``format()`` keyword.
+FONT_FORMATS = {
+    ".woff2": "woff2",
+    ".woff": "woff",
+    ".ttf": "truetype",
+    ".otf": "opentype",
+}
 
 
 @pdataclasses.dataclass(
@@ -83,58 +80,115 @@ FONT_MAP = {
 }
 
 
-def download_google_font(
-    font_name: str, github_token: str | None
-) -> Iterator[FontDescriptor]:
+CSS2_ENDPOINT = "https://fonts.googleapis.com/css2"
+
+# Google only serves woff2 to a UA it recognises as a modern browser; a bare or
+# unknown UA gets ttf. We self-host the woff2, so we have to ask as a browser.
+BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
+# The generated stylesheet styles only body text (normal) and headings (bold),
+# so those are the only two weights worth fetching.
+FONT_WEIGHTS = "400;700"
+
+
+def build_google_font(
+    css: str,
+    fetch: Callable[[str], bytes],
+    static_path: pathlib.Path,
+) -> tuple[list[artifacts.BytesArtifact], str, io.BytesIO]:
+    """Turn css2-style CSS into self-hosted font artifacts.
+
+    ``fetch`` maps a font URL — gstatic on a fresh build, an already-local
+    ``/static/…`` path on a cache hit — to its bytes. Google has already subsetted
+    per script and emitted a matching ``unicode-range`` for every face, so we keep
+    its CSS verbatim and only repoint the URLs at our own static dir. Returns the
+    artifacts, the localized CSS, and one latin face for the social-preview image.
     """
-    Downloads font files from the Google Fonts GitHub repository
-    and returns them as an in-memory ZIP archive.
-    """
+    font_artifacts: list[artifacts.BytesArtifact] = []
+    preview_face: io.BytesIO | None = None
+    subset: str | None = None
 
-    headers = {}
-    if github_token:
-        headers = {"Authorization": f"token {github_token}"}
-
-    with httpx.Client(headers=headers) as client:
-        yield from search_download_font_from_github(client=client, font_name=font_name)
-
-
-def search_download_font_from_github(
-    client: httpx.Client,
-    font_name: str,
-) -> Iterator[FontDescriptor]:
-    dir_name = font_name.lower().replace(" ", "")
-
-    base_api = "https://api.github.com/repos/google/fonts/contents"
-    # Font is in one of the subdirs of those dirs, but we don't know which.
-    licenses = ["ofl", "apache", "ufl"]
-    for license_type in licenses:
-        check_url = f"{base_api}/{license_type}/{dir_name}"
-        response = client.get(check_url)
-        try:
-            response.raise_for_status()
-        except httpx.HTTPError:
+    for node in tinycss2.parse_stylesheet(
+        css, skip_comments=False, skip_whitespace=False
+    ):
+        if isinstance(node, tinycss2.ast.Comment):
+            subset = node.value.strip()  # css2 labels each block: /* latin */, …
             continue
-        break
+        if not isinstance(node, tinycss2.ast.AtRule):
+            continue
+        if node.lower_at_keyword != "font-face":
+            continue
+        for token in node.content or ():
+            # The url() src; skips format('woff2'), unicode-range, whitespace, etc.
+            if not isinstance(token, tinycss2.ast.URLToken):
+                continue
+            data = fetch(token.value)
+            font_path = static_path / token.value.rsplit("/", 1)[-1]
+            font_artifacts.append(
+                artifacts.BytesArtifact(contents=io.BytesIO(data), path=font_path)
+            )
+            # French text lives entirely in the latin subset, so any latin face
+            # renders the preview; keep the first one we encounter.
+            if preview_face is None and subset == "latin":
+                preview_face = io.BytesIO(data)
+            css = css.replace(token.value, f"/{font_path}")
+
+    if preview_face is None:
+        raise ValueError("css2 returned no 'latin' subset to render previews with.")
+
+    return font_artifacts, css, preview_face
+
+
+def download_google_font(
+    settings: settings_module.Settings,
+    name: str,
+    fallback: settings_module.GenericFont,
+) -> FontFamily:
+    """Fetch a Google font as self-hosted woff2 through the css2 API."""
+    static_path = settings.build_static_dir
+    cache_dir = settings.cache_dir / name
+    cached_css = cache_dir / settings.fonts_css_filename
+
+    if cached_css.exists():
+        # The cached CSS already points at /static/…; resolve each local URL back
+        # to its cached bytes and let build_google_font rebuild the artifacts.
+        font_artifacts, css, preview = build_google_font(
+            css=cached_css.read_text(),
+            fetch=lambda url: (cache_dir / url.rsplit("/", 1)[-1]).read_bytes(),
+            static_path=static_path,
+        )
     else:
-        raise ValueError(
-            f"Font '{font_name}' not found in Google Fonts GitHub repository."
-        )
+        with httpx.Client(headers={"User-Agent": BROWSER_UA}) as client:
 
-    files_data: list[dict[str, str]] = response.json()
-    font_files = [f for f in files_data if f["name"].lower().endswith(".ttf")]
+            def fetch(url: str) -> bytes:
+                response = client.get(url)
+                response.raise_for_status()
+                return response.content
 
-    if not font_files:
-        raise ValueError(f"No .ttf files found for '{font_name}'.")
+            stylesheet = client.get(
+                CSS2_ENDPOINT,
+                params={"family": f"{name}:wght@{FONT_WEIGHTS}", "display": "swap"},
+            )
+            stylesheet.raise_for_status()
+            font_artifacts, css, preview = build_google_font(
+                css=stylesheet.text, fetch=fetch, static_path=static_path
+            )
 
-    for file in font_files:
-        download_url: str = file["download_url"]
-        file_response = client.get(download_url)
-        file_response.raise_for_status()
-        contents = io.BytesIO(file_response.content)
-        yield get_font_descriptor(
-            font_bytes=contents,
-        )
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cached_css.write_text(css)
+        for artifact in font_artifacts:
+            (cache_dir / artifact.path.name).write_bytes(artifact.contents.getvalue())
+
+    return FontFamily(
+        artifacts=font_artifacts,
+        name=name,
+        fallback=fallback,
+        css_parts=[css],
+        main_file=preview,
+    )
 
 
 class FontException(Exception):
@@ -149,26 +203,14 @@ class CouldNotExtractFontWeight(FontException):
     pass
 
 
-def get_font_descriptor(font_bytes: io.BytesIO) -> FontDescriptor:
-    font_obj = get_font_obj(font_bytes)
-    font_name = get_font_name(font_obj)
-    if not font_name:
-        raise CouldNotExtractFontName
-    return FontDescriptor(
-        contents=font_bytes,
-        style=get_font_style(font_obj),
-        name=font_name,
-    )
+class UnsupportedFontFormat(FontException):
+    pass
 
 
 @functools.cache
 def get_font_obj(font_bytes: io.BytesIO) -> fontTools.ttLib.TTFont:
     font_bytes.seek(0)
     return fontTools.ttLib.TTFont(font_bytes)
-
-
-def get_font_name(font: fontTools.ttLib.TTFont) -> str | None:
-    return font["name"].getBestFamilyName()
 
 
 def get_font_style(font: fontTools.ttLib.TTFont) -> FontStyle:
@@ -198,43 +240,6 @@ def get_font_style(font: fontTools.ttLib.TTFont) -> FontStyle:
     return None
 
 
-RANGES = {
-    "latin": [
-        CharRange(0x0000, 0x00FF),
-        # Individual codepoints
-        CharRange(0x0131),
-        CharRange(0x0152),
-        CharRange(0x0153),
-        CharRange(0x02BB),
-        CharRange(0x02BC),
-        CharRange(0x02C6),
-        CharRange(0x02DA),
-        CharRange(0x02DC),
-        CharRange(0x2000, 0x206F),
-        CharRange(0x20AC),
-        CharRange(0x2122),
-        CharRange(0x2191),
-        CharRange(0x2193),
-        CharRange(0x2212),
-        CharRange(0x2215),
-        CharRange(0xFEFF),
-        CharRange(0xFFFD),
-    ],
-    "latin-ext": [
-        CharRange(0x0100, 0x024F),
-        CharRange(0x0250, 0x02AF),
-        CharRange(0x1E00, 0x1EFF),
-        CharRange(0x20A0, 0x20CF),
-    ],
-}
-
-
-def get_font_supported_unicodes(font_obj: TTFont) -> set[int]:
-    """Returns a set of all unicode codepoints supported by the font."""
-    # font.getBestCmap() returns a dict {int: str}, we only need the keys
-    return set(font_obj.getBestCmap() or ())
-
-
 def get_font_metadata(font_obj: fontTools.ttLib.TTFont) -> tuple[str, str]:
     """Extracts weight and family name from the TTF file."""
     # Check for Variable Font 'fvar' table
@@ -257,79 +262,6 @@ def get_font_metadata(font_obj: fontTools.ttLib.TTFont) -> tuple[str, str]:
         raise CouldNotExtractFontWeight
 
     return family_name, weight
-
-
-def generate_subset(
-    font_obj: fontTools.ttLib.TTFont, unicode_subset: set[int], font_format: str
-) -> io.BytesIO:
-    """Generates a subsetted font file."""
-
-    subsetter = Subsetter(
-        options=Options(
-            flavor=font_format,
-            layout_features=["*"],  # Keep all OpenType features
-            ignore_missing_unicodes=True,
-        )
-    )
-    subsetter.populate(unicodes=list(unicode_subset))
-
-    subsetter.subset(font_obj)
-    result = io.BytesIO()
-    font_obj.save(result)
-    font_obj.close()
-
-    return result
-
-
-def process_font(
-    font_descriptor: FontDescriptor,
-    static_path: pathlib.Path,
-) -> Iterator[artifacts.BytesArtifact]:
-    """Main pipeline: extracts info, subsets files, and prints CSS."""
-    font_obj = get_font_obj(font_bytes=font_descriptor.contents)
-    family, weight = get_font_metadata(font_obj=font_obj)
-
-    css_parts = []
-    font_format = "woff2"
-    supported_unicode = get_font_supported_unicodes(font_obj=font_obj)
-
-    for subset_name, char_ranges in RANGES.items():
-        style_suffix = "-italic" if font_descriptor.style == "italic" else ""
-        filename = f"{font_descriptor.name}{style_suffix}-{subset_name}.{font_format}"
-
-        unicode_subset: set[int] = set.union(*(r.to_set() for r in char_ranges))  # pyright: ignore[reportUnknownVariableType]
-        unicode_subset &= supported_unicode
-
-        font_path = static_path / filename
-
-        # Create the physical file
-        yield artifacts.BytesArtifact(
-            contents=generate_subset(
-                font_obj=font_obj,
-                unicode_subset=unicode_subset,
-                font_format=font_format,
-            ),
-            path=font_path,
-        )
-
-        # Generate the CSS block
-        css_range = ", ".join(r.to_css() for r in char_ranges)
-
-        css_parts.append(f"""@font-face {{
-  font-family: '{family}';
-  font-style: {font_descriptor.style};
-  font-weight: {weight};
-  font-display: swap;
-  src: url('/{font_path}') format('woff2');
-  unicode-range: {css_range};
-}}""")
-
-    font_descriptor.css_parts = css_parts
-
-
-def get_file_name(font_descriptor: FontDescriptor) -> str:
-    suffix = "-Italic" if font_descriptor.style == "italic" else ""
-    return f"{font_descriptor.name}{suffix}.ttf"
 
 
 def make_font_css(
@@ -393,60 +325,64 @@ def get_font_family(
             main_file=main_font[fallback],
         )
 
-    fonts: list[FontDescriptor] = []
+    if isinstance(font_input, str):
+        # A Google Font name: let Google subset and encode it, self-host the result.
+        return download_google_font(
+            settings=settings, name=font_input, fallback=fallback
+        )
+
+    # Local font file(s): served verbatim, one @font-face each. We don't subset
+    # what we didn't make; the user brought a file, we host it as-is.
     if isinstance(font_input, pathlib.Path):
         font_input = [font_input]
 
-    if isinstance(font_input, list):
-        names: list[str] = []
-        for font in font_input:
-            descriptor = get_font_descriptor(font_bytes=io.BytesIO(font.read_bytes()))
-            fonts.append(descriptor)
-            names.append(descriptor.name)
-        if len(different_names := set(names)) > 1:
-            raise MultipleFonts(
-                "Multiple fonts provided that don't seem to belong to the same family "
-                f"({', '.join(different_names)})"
-            )
-        name = names[0]
-
-    else:
-        name = font_input
-        cache_dir = settings.cache_dir / name
-
-        if cache_dir.exists() and (cached_files := list(cache_dir.iterdir())):
-            # Read fonts from cache
-            fonts.extend(
-                get_font_descriptor(font_bytes=io.BytesIO(f.read_bytes()))
-                for f in cached_files
-            )
-        else:
-            # Fetch fonts
-            downloaded = list(
-                download_google_font(font_name=name, github_token=settings.github_token)
-            )
-            fonts.extend(downloaded)
-            # Cache fonts
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            for font_file in downloaded:
-                (cache_dir / get_file_name(font_file)).write_bytes(
-                    font_file.contents.getvalue()
-                )
-
     font_artifacts: list[artifacts.BytesArtifact] = []
-    for font in fonts:
-        font_artifacts.extend(
-            process_font(font_descriptor=font, static_path=settings.build_static_dir)
+    css_parts: list[str] = []
+    faces: list[tuple[io.BytesIO, FontStyle]] = []
+    names: list[str] = []
+    for path in font_input:
+        try:
+            font_format = FONT_FORMATS[path.suffix.lower()]
+        except KeyError as exc:
+            raise UnsupportedFontFormat(
+                f"Cannot serve '{path.name}': supported formats are "
+                f"{', '.join(FONT_FORMATS)}."
+            ) from exc
+
+        contents = io.BytesIO(path.read_bytes())
+        font_obj = get_font_obj(contents)
+        family, weight = get_font_metadata(font_obj=font_obj)
+        style = get_font_style(font_obj)
+        names.append(family)
+        faces.append((contents, style))
+
+        font_path = settings.build_static_dir / path.name
+        font_artifacts.append(
+            artifacts.BytesArtifact(contents=contents, path=font_path)
+        )
+        css_parts.append(f"""@font-face {{
+  font-family: '{family}';
+  font-style: {style or "normal"};
+  font-weight: {weight};
+  font-display: swap;
+  src: url('/{font_path}') format('{font_format}');
+}}""")
+
+    if len(different_names := set(names)) > 1:
+        raise MultipleFonts(
+            "Multiple fonts provided that don't seem to belong to the same family "
+            f"({', '.join(different_names)})"
         )
 
-    main_font = min(fonts, key=lambda x: bool(x.style))
+    # Prefer an upright face to render the social preview.
+    main_file = min(faces, key=lambda face: bool(face[1]))[0]
 
     return FontFamily(
         artifacts=font_artifacts,
-        name=name,
+        name=names[0],
         fallback=fallback,
-        css_parts=[part for font in fonts for part in font.css_parts],
-        main_file=main_font.contents,
+        css_parts=css_parts,
+        main_file=main_file,
     )
 
 

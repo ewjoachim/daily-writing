@@ -116,12 +116,6 @@ def test_settings_properties(dw_settings):
     assert settings.index_colors_hex == ["#ffffff"]
 
 
-def test_settings_github_token(dw_settings, monkeypatch):
-    settings = dw_settings()
-    monkeypatch.setenv("GITHUB_TOKEN", "secret")
-    assert settings.github_token == "secret"
-
-
 def test_default_site_name__from_pyproject(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "pyproject.toml").write_text('[project]\nname = "my-site"\n')

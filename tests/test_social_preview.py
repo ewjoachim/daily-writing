@@ -2,7 +2,7 @@ import io
 
 from PIL import Image
 
-from daily_writing import fonts, social_preview
+from daily_writing import social_preview
 
 
 def test_signature_is_stable_hex(social_preview_contents):
@@ -38,16 +38,6 @@ def test_generate_social_preview(
     png = social_preview.generate_social_preview(contents)
 
     assert png.getvalue().startswith(b"\x89PNG")
-
-
-def test_get_ttf_font(variable_font_bytes, tmp_path):
-    woff2 = fonts.generate_subset(
-        fonts.get_font_obj(io.BytesIO(variable_font_bytes)), {0x41, 0x42}, "woff2"
-    )
-    path = tmp_path / "font.woff2"
-    path.write_bytes(woff2.getvalue())
-
-    assert social_preview.get_ttf_font(path) is not None
 
 
 def test_draw_vertical_gradient__single_color():

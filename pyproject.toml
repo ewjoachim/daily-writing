@@ -44,6 +44,7 @@ dependencies = [
     "yarl>=1.24.2",
     # General utilities
     "typing-extensions>=4.15.0",
+    "tinycss2>=1.5.1",
 ]
 [project.optional-dependencies]
 server = [

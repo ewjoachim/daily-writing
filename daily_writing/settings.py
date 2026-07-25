@@ -400,7 +400,7 @@ class Settings(
     title_ttf_font: Annotated[
         pydantic.FilePath | list[pydantic.FilePath] | str | None,
         pydantic.Field(
-            description="Font for titles (all sizes). Either a path to a .ttf file or the name of a Google Font that will be downloaded. In case direct paths to ttf files are provided, it may be multiple files for font variant, but you all the files will need to be part of the same font family."
+            description="Font for titles (all sizes). Either the name of a Google Font (downloaded and subset through the Google Fonts API) or a path to a local font file (.woff2/.woff/.ttf/.otf) served as-is. Several local files may be given for different variants of the same family."
         ),
     ] = None
     title_ttf_font_fallback: Annotated[
@@ -412,7 +412,7 @@ class Settings(
     body_ttf_font: Annotated[
         pydantic.FilePath | list[pydantic.FilePath] | str | None,
         pydantic.Field(
-            description="Font for body. Either a path to a .ttf file or the name of a Google Font that will be downloaded. In case direct paths to ttf files are provided, it may be multiple files for font variant, but you all the files will need to be part of the same font family."
+            description="Font for body. Either the name of a Google Font (downloaded and subset through the Google Fonts API) or a path to a local font file (.woff2/.woff/.ttf/.otf) served as-is. Several local files may be given for different variants of the same family."
         ),
     ] = None
     body_ttf_font_fallback: Annotated[
@@ -526,14 +526,6 @@ class Settings(
     @property
     def index_colors_hex(self) -> list[str]:
         return [hex_color(c) for c in self.index_colors]
-
-    @property
-    def github_token(self):
-        # A property, not a settings field, on purpose: the only secret here, so it must
-        # never be settable from the config file nor surface in the CMS (which renders
-        # model_fields). Reading the conventional GITHUB_TOKEN env var directly keeps it
-        # out of both while matching what CI already provides.
-        return os.environ.get("GITHUB_TOKEN")
 
     @override
     @classmethod

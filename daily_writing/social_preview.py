@@ -1,5 +1,4 @@
 import dataclasses
-import functools
 import hashlib
 import io
 import itertools
@@ -7,7 +6,6 @@ import logging
 import pathlib
 import textwrap
 
-import fontTools.ttLib.woff2
 import numpy as np
 import pydantic
 from PIL import Image, ImageDraw, ImageFont
@@ -43,14 +41,6 @@ class SocialPreviewContents:
             self_dict["title_font"] = hashlib.md5(self.title_font.getvalue())
 
         return hashlib.md5(b"").hexdigest()[:8]
-
-
-@functools.cache
-def get_ttf_font(path: pathlib.Path) -> ImageFont.FreeTypeFont:
-    bytes_obj = io.BytesIO()
-    fontTools.ttLib.woff2.decompress(path, bytes_obj)
-    bytes_obj.seek(0)
-    return ImageFont.FreeTypeFont(bytes_obj)
 
 
 def generate_social_preview(contents: SocialPreviewContents) -> io.BytesIO:
