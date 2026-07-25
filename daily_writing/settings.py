@@ -529,6 +529,10 @@ class Settings(
 
     @property
     def github_token(self):
+        # A property, not a settings field, on purpose: the only secret here, so it must
+        # never be settable from the config file nor surface in the CMS (which renders
+        # model_fields). Reading the conventional GITHUB_TOKEN env var directly keeps it
+        # out of both while matching what CI already provides.
         return os.environ.get("GITHUB_TOKEN")
 
     @override
