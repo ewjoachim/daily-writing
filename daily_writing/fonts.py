@@ -5,7 +5,9 @@ import sys
 from collections.abc import Callable, Iterable
 from typing import Literal
 
+import fontTools.merge
 import fontTools.ttLib
+import fontTools.varLib.instancer
 import httpx
 import pydantic
 import tinycss2
@@ -34,15 +36,18 @@ class FontFamily:
     name: str | None
     fallback: settings_module.GenericFont
     css_parts: list[str]
-    main_file: io.BytesIO | pathlib.Path
+    # Faces that together cover every script the family supports. css2 slices a
+    # font into one variable face per script; local/default fonts are a single
+    # face. Merged into one static preview font by build_preview_font.
+    coverage_faces: list[io.BytesIO | pathlib.Path]
 
 
 @pdataclasses.dataclass(
     kw_only=True, config=pydantic.ConfigDict(arbitrary_types_allowed=True)
 )
 class FontFiles:
-    body_font: io.BytesIO | pathlib.Path
-    title_font: io.BytesIO | pathlib.Path
+    body_font: list[io.BytesIO | pathlib.Path]
+    title_font: list[io.BytesIO | pathlib.Path]
     artifacts: Iterable[artifacts.BytesArtifact | artifacts.TextArtifact]
 
 
@@ -98,17 +103,18 @@ def build_google_font(
     css: str,
     fetch: Callable[[str], bytes],
     static_path: pathlib.Path,
-) -> tuple[list[artifacts.BytesArtifact], str, io.BytesIO]:
+) -> tuple[list[artifacts.BytesArtifact], str, list[io.BytesIO | pathlib.Path]]:
     """Turn css2-style CSS into self-hosted font artifacts.
 
     ``fetch`` maps a font URL — gstatic on a fresh build, an already-local
     ``/static/…`` path on a cache hit — to its bytes. Google has already subsetted
     per script and emitted a matching ``unicode-range`` for every face, so we keep
     its CSS verbatim and only repoint the URLs at our own static dir. Returns the
-    artifacts, the localized CSS, and one latin face for the social-preview image.
+    artifacts, the localized CSS, and one face per script for the social preview —
+    each weight of a script shares glyph coverage, so one face per script is enough.
     """
     font_artifacts: list[artifacts.BytesArtifact] = []
-    preview_face: io.BytesIO | None = None
+    coverage_faces: dict[str, io.BytesIO | pathlib.Path] = {}
     subset: str | None = None
 
     for node in tinycss2.parse_stylesheet(
@@ -130,16 +136,16 @@ def build_google_font(
             font_artifacts.append(
                 artifacts.BytesArtifact(contents=io.BytesIO(data), path=font_path)
             )
-            # French text lives entirely in the latin subset, so any latin face
-            # renders the preview; keep the first one we encounter.
-            if preview_face is None and subset == "latin":
-                preview_face = io.BytesIO(data)
+            # Keep one face per script; the preview merges them so any script
+            # renders instead of tofu. Fall back to the filename if css2 ever
+            # omits the subset comment, so distinct faces aren't collapsed.
+            coverage_faces.setdefault(subset or font_path.name, io.BytesIO(data))
             css = css.replace(token.value, f"/{font_path}")
 
-    if preview_face is None:
-        raise ValueError("css2 returned no 'latin' subset to render previews with.")
+    if not coverage_faces:
+        raise ValueError("css2 returned no font faces.")
 
-    return font_artifacts, css, preview_face
+    return font_artifacts, css, list(coverage_faces.values())
 
 
 def download_google_font(
@@ -155,7 +161,7 @@ def download_google_font(
     if cached_css.exists():
         # The cached CSS already points at /static/…; resolve each local URL back
         # to its cached bytes and let build_google_font rebuild the artifacts.
-        font_artifacts, css, preview = build_google_font(
+        font_artifacts, css, coverage_faces = build_google_font(
             css=cached_css.read_text(),
             fetch=lambda url: (cache_dir / url.rsplit("/", 1)[-1]).read_bytes(),
             static_path=static_path,
@@ -173,7 +179,7 @@ def download_google_font(
                 params={"family": f"{name}:wght@{FONT_WEIGHTS}", "display": "swap"},
             )
             stylesheet.raise_for_status()
-            font_artifacts, css, preview = build_google_font(
+            font_artifacts, css, coverage_faces = build_google_font(
                 css=stylesheet.text, fetch=fetch, static_path=static_path
             )
 
@@ -187,7 +193,7 @@ def download_google_font(
         name=name,
         fallback=fallback,
         css_parts=[css],
-        main_file=preview,
+        coverage_faces=coverage_faces,
     )
 
 
@@ -322,7 +328,7 @@ def get_font_family(
             name=None,
             fallback=fallback,
             css_parts=[],
-            main_file=main_font[fallback],
+            coverage_faces=[main_font[fallback]],
         )
 
     if isinstance(font_input, str):
@@ -382,7 +388,7 @@ def get_font_family(
         name=names[0],
         fallback=fallback,
         css_parts=css_parts,
-        main_file=main_file,
+        coverage_faces=[main_file],
     )
 
 
@@ -415,7 +421,68 @@ def get_all_font_files(
     ]
 
     return FontFiles(
-        body_font=body_font_family.main_file,
-        title_font=title_font_family.main_file,
+        body_font=body_font_family.coverage_faces,
+        title_font=title_font_family.coverage_faces,
         artifacts=font_artifacts,
     )
+
+
+def _named_instance_coords(
+    font: fontTools.ttLib.TTFont, variation: str
+) -> dict[str, float] | None:
+    """Axis coordinates of the named instance ``variation``, if the font has one."""
+    name_table = font["name"]
+    fvar = font["fvar"]
+    for instance in fvar.instances:  # pyright: ignore[reportUnknownVariableType]
+        name = name_table.getDebugName(instance.subfamilyNameID)  # pyright: ignore[reportUnknownArgumentType]
+        if name == variation:
+            return dict(instance.coordinates)  # pyright: ignore[reportUnknownArgumentType]
+    return None
+
+
+@functools.cache
+def _merge_preview_font(faces: tuple[bytes, ...], variation: str) -> bytes:
+    statics: list[io.BytesIO] = []
+    for face in faces:
+        font = fontTools.ttLib.TTFont(io.BytesIO(face))
+        # Merging variable fonts isn't supported, so pin each to a static
+        # instance first — the named weight when present, else the default.
+        if "fvar" in font:
+            fvar = font["fvar"]
+            coords = _named_instance_coords(font, variation) or {
+                axis.axisTag: axis.defaultValue
+                for axis in fvar.axes  # pyright: ignore[reportUnknownVariableType]
+            }
+            fontTools.varLib.instancer.instantiateVariableFont(
+                font, coords, inplace=True
+            )
+        buf = io.BytesIO()
+        font.save(buf)
+        buf.seek(0)
+        statics.append(buf)
+
+    if len(statics) == 1:
+        return statics[0].getvalue()
+
+    merged = io.BytesIO()
+    fontTools.merge.Merger().merge(statics).save(merged)
+    return merged.getvalue()
+
+
+def build_preview_font(
+    faces: list[io.BytesIO | pathlib.Path], variation: str
+) -> bytes | None:
+    """One static font covering every ``faces`` script, pinned to ``variation``.
+
+    Pillow does no font fallback, so a preview drawn with a single css2 script
+    subset tofus on any other script. We pin each subset (a variable font) to
+    ``variation``'s named instance and merge the disjoint subsets into one static
+    file. Returns ``None`` for the default system fonts — a bare filename Pillow
+    resolves against its own font dirs, not a path we can open and merge.
+    """
+    face_bytes: list[bytes] = []
+    for face in faces:
+        if isinstance(face, pathlib.Path):
+            return None
+        face_bytes.append(face.getvalue())
+    return _merge_preview_font(tuple(face_bytes), variation)

@@ -11,6 +11,8 @@ import pydantic
 from PIL import Image, ImageDraw, ImageFont
 from pydantic import dataclasses as pdataclasses
 
+from daily_writing import fonts
+
 logger = logging.getLogger("daily_writing")
 
 
@@ -28,42 +30,47 @@ class SocialPreviewContents:
     logo: pathlib.Path | None
     date: str | None  # this might not strictly be a date
     colors: list[str]
-    body_font: io.BytesIO | pathlib.Path
-    title_font: io.BytesIO | pathlib.Path
+    body_font: list[io.BytesIO | pathlib.Path]
+    title_font: list[io.BytesIO | pathlib.Path]
 
     @property
     def signature(self) -> str:
         self_dict = dataclasses.asdict(self)
-        if isinstance(self.body_font, io.BytesIO):
-            self_dict["body_font"] = hashlib.md5(self.body_font.getvalue())
-
-        if isinstance(self.title_font, io.BytesIO):
-            self_dict["title_font"] = hashlib.md5(self.title_font.getvalue())
+        self_dict["body_font"] = _faces_digest(self.body_font)
+        self_dict["title_font"] = _faces_digest(self.title_font)
 
         return hashlib.md5(b"").hexdigest()[:8]
+
+
+def _faces_digest(faces: list[io.BytesIO | pathlib.Path]) -> list[str]:
+    return [
+        hashlib.md5(face.getvalue()).hexdigest()
+        if isinstance(face, io.BytesIO)
+        else str(face)
+        for face in faces
+    ]
+
+
+def _preview_font(
+    faces: list[io.BytesIO | pathlib.Path], variation: str, size: int
+) -> ImageFont.FreeTypeFont:
+    """Load the merged, script-covering preview font (or a system font) at ``size``.
+
+    ``build_preview_font`` bakes the weight in, so ``variation`` is applied here
+    rather than through ``set_variation_by_name`` on a (now static) font.
+    """
+    if (data := fonts.build_preview_font(faces, variation)) is not None:
+        return ImageFont.truetype(io.BytesIO(data), size=size)
+    return ImageFont.truetype(str(faces[0]), size=size)
 
 
 def generate_social_preview(contents: SocialPreviewContents) -> io.BytesIO:
     image = Image.new(mode="RGBA", size=(1200, 630), color="#1d1d1d")
     draw = ImageDraw.Draw(image)
 
-    if isinstance(contents.body_font, io.BytesIO):
-        contents.body_font.seek(0)
-
-    if isinstance(contents.title_font, io.BytesIO):
-        contents.title_font.seek(0)
-
-    title_font = ImageFont.FreeTypeFont(contents.title_font)
-    body_font = ImageFont.FreeTypeFont(contents.body_font)
-
-    top_line_font = title_font.font_variant(size=36)
-    top_line_font.set_variation_by_name("SemiBold")
-
-    title_variant = title_font.font_variant(size=60)
-    title_variant.set_variation_by_name("SemiBold")
-
-    text_variant = body_font.font_variant(size=36)
-    text_variant.set_variation_by_name("Medium")
+    top_line_font = _preview_font(contents.title_font, "SemiBold", size=36)
+    title_variant = _preview_font(contents.title_font, "SemiBold", size=60)
+    text_variant = _preview_font(contents.body_font, "Medium", size=36)
 
     draw.text((100, 50), contents.top_line, font=top_line_font, fill="#ced6dd")
     if contents.logo:

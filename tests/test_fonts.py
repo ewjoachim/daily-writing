@@ -3,6 +3,8 @@ import pathlib
 import re
 import sys
 
+import fontbuilder
+import fontTools.ttLib
 import pytest
 
 from daily_writing import artifacts, fonts
@@ -76,15 +78,75 @@ def test_get_font_family__downloads_then_reads_cache(dw_settings, httpx_mock):
     # The gstatic URL was repointed at our own static dir.
     assert any("/static/aaaa.woff2" in part for part in downloaded.css_parts)
     assert "gstatic" not in downloaded.css_parts[0]
-    # The latin face is kept in memory to render the social preview.
-    assert downloaded.main_file.getvalue() == b"woff2-bytes"
+    # Every script's face is kept in memory to render the social preview.
+    assert downloaded.coverage_faces[0].getvalue() == b"woff2-bytes"
 
     # Second call must not hit the network: httpx_mock would raise if it did.
     cached = fonts.get_font_family(
         settings=settings, font_input="Test Font", fallback="serif"
     )
     assert cached.name == "Test Font"
-    assert cached.main_file.getvalue() == b"woff2-bytes"
+    assert cached.coverage_faces[0].getvalue() == b"woff2-bytes"
+
+
+def test_build_google_font__keeps_one_face_per_subset():
+    css = (
+        "/* latin */\n"
+        "@font-face { src: url(https://f/latin-400.woff2) format('woff2'); }\n"
+        "/* latin */\n"
+        "@font-face { src: url(https://f/latin-700.woff2) format('woff2'); }\n"
+        "/* cyrillic */\n"
+        "@font-face { src: url(https://f/cyr-400.woff2) format('woff2'); }\n"
+    )
+
+    font_artifacts, localized_css, faces = fonts.build_google_font(
+        css=css, fetch=lambda url: url.encode(), static_path=pathlib.Path("static")
+    )
+
+    # Both weights of latin collapse to one face; cyrillic adds the second, so the
+    # preview covers every script instead of only latin.
+    assert [face.getvalue() for face in faces] == [
+        b"https://f/latin-400.woff2",
+        b"https://f/cyr-400.woff2",
+    ]
+    # Dedup is preview-only: every @font-face still becomes a served artifact.
+    assert len(font_artifacts) == 3
+    assert "https://" not in localized_css
+
+
+def test_build_preview_font__merges_disjoint_subsets():
+    latin = fontbuilder.build_variable_font("AB")
+    cyrillic = fontbuilder.build_variable_font("ДЕ")
+
+    data = fonts.build_preview_font(
+        [io.BytesIO(latin), io.BytesIO(cyrillic)], "SemiBold"
+    )
+
+    assert data is not None
+    font = fontTools.ttLib.TTFont(io.BytesIO(data))
+    cmap = font.getBestCmap()
+    # One static font now covers both scripts, so neither tofus.
+    assert cmap is not None
+    assert ord("A") in cmap
+    assert ord("Д") in cmap
+    assert "fvar" not in font  # merging requires (and produces) a static font
+    assert font["OS/2"].usWeightClass == 600  # pinned to SemiBold
+
+
+def test_build_preview_font__single_face_pins_weight():
+    data = fonts.build_preview_font(
+        [io.BytesIO(fontbuilder.build_variable_font())], "Medium"
+    )
+
+    assert data is not None
+    font = fontTools.ttLib.TTFont(io.BytesIO(data))
+    assert "fvar" not in font
+    assert font["OS/2"].usWeightClass == 500  # Medium
+
+
+def test_build_preview_font__system_font_returns_none():
+    # A bare filename Pillow resolves against its own dirs can't be opened and merged.
+    assert fonts.build_preview_font([pathlib.Path("Helvetica.ttc")], "Medium") is None
 
 
 def test_get_font_family__unsupported_platform(dw_settings, monkeypatch):
@@ -102,7 +164,7 @@ def test_get_font_family__default_uses_platform_font(dw_settings):
     assert family.name is None
     assert family.fallback == "sans-serif"
     assert family.artifacts == []
-    assert family.main_file == fonts.FONT_MAP[sys.platform]["sans-serif"]
+    assert family.coverage_faces == [fonts.FONT_MAP[sys.platform]["sans-serif"]]
 
 
 def test_make_font_css():
@@ -111,14 +173,14 @@ def test_make_font_css():
         name="TitleFont",
         fallback="sans-serif",
         css_parts=[],
-        main_file=io.BytesIO(),
+        coverage_faces=[io.BytesIO()],
     )
     body = fonts.FontFamily(
         artifacts=[],
         name="BodyFont",
         fallback="serif",
         css_parts=[],
-        main_file=io.BytesIO(),
+        coverage_faces=[io.BytesIO()],
     )
 
     artifact = fonts.make_font_css(
