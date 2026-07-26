@@ -25,8 +25,8 @@ def _square_glyph():
     return pen.glyph()
 
 
-def build_variable_font() -> bytes:
-    cmap = {ord(c): f"g{ord(c)}" for c in _LETTERS}
+def build_variable_font(letters: str = _LETTERS) -> bytes:
+    cmap = {ord(c): f"g{ord(c)}" for c in letters}
     glyph_order = [".notdef", *cmap.values()]
 
     fb = FontBuilder(_UPM, isTTF=True)

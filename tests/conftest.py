@@ -96,8 +96,8 @@ def social_preview_contents():
             "logo": None,
             "date": "October 2024",
             "colors": ["#ffffff"],
-            "body_font": io.BytesIO(b"body"),
-            "title_font": io.BytesIO(b"title"),
+            "body_font": [io.BytesIO(b"body")],
+            "title_font": [io.BytesIO(b"title")],
         }
         return social_preview.SocialPreviewContents(**{**defaults, **kwargs})
 

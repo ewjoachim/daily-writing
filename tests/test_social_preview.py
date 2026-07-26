@@ -17,7 +17,7 @@ def test_signature_is_stable_hex(social_preview_contents):
 def test_signature__path_fonts(social_preview_contents, variable_font):
     # Path (not BytesIO) fonts take the other branch of signature().
     contents = social_preview_contents(
-        body_font=variable_font, title_font=variable_font
+        body_font=[variable_font], title_font=[variable_font]
     )
     assert len(contents.signature) == 8
 
@@ -31,8 +31,8 @@ def test_generate_social_preview(
         description="A fairly long description " * 20,  # forces multi-line wrapping
         logo=logo,
         colors=["#ff0000", "#00ff00", "#0000ff"],
-        body_font=io.BytesIO(variable_font_bytes),
-        title_font=io.BytesIO(variable_font_bytes),
+        body_font=[io.BytesIO(variable_font_bytes)],
+        title_font=[io.BytesIO(variable_font_bytes)],
     )
 
     png = social_preview.generate_social_preview(contents)
