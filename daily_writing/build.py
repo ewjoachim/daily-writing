@@ -117,7 +117,7 @@ def writing_artifacts(
     social_preview_contents = social_preview.SocialPreviewContents(
         top_line=" — ".join(top_line),
         title=writing.full_title,
-        description=writing.markdown_file.excerpt(),
+        description=writing.markdown_file.description,
         logo=settings.source_static_dir / settings.logo if settings.logo else None,
         date=i18n.full_date(dates=writing.dates, locale=settings.locale),
         colors=colors,

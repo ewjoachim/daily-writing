@@ -214,7 +214,7 @@ class MarkdownFile:
         return [self.writing_metadata]
 
     @property
-    def markdown_title(self) -> str | None:
+    def text_title(self) -> str | None:
         for node in self._root_node.walk():
             if node.type == "heading":
                 return self._plain_text(node)
@@ -230,13 +230,17 @@ class MarkdownFile:
 
     def get_html(self, title_fallback: str):
         markdown = self.markdown
-        if self.markdown_title is None:
+        if self.text_title is None:
             markdown = f"# {title_fallback}\n{markdown}"
         return self._markdown_it_parser.render(markdown)
 
     @functools.cached_property
     def text_content(self) -> str:
-        return self._plain_text(self._root_node)
+        return " ".join(
+            self._plain_text(node)
+            for node in self._root_node.children
+            if node.type != "heading"
+        )
 
     @property
     def _root_node(self):
@@ -304,7 +308,7 @@ def extract_markdown_title_prompts(
 
 
 def extract_full_title(markdown_file: MarkdownFile, prompts: list[Prompt]) -> str:
-    if markdown_title := markdown_file.markdown_title:
+    if markdown_title := markdown_file.text_title:
         return markdown_title
 
     if markdown_file.writing_metadata.full_title:
@@ -345,7 +349,7 @@ class Writing:
             extract_markdown_title_prompts(
                 year=year,
                 month=month,
-                markdown_title=markdown_file.markdown_title,
+                markdown_title=markdown_file.text_title,
             )
         )
         front_matter_prompts = markdown_file.front_matter_prompts

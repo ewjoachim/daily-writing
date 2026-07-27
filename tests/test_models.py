@@ -67,7 +67,7 @@ def test_markdown_file(write_md):
     path = write_md("w.md", "# My Title\n\nHello world content.\n")
     md = models.MarkdownFile.from_md_path(md_path=path)
 
-    assert md.markdown_title == "My Title"
+    assert md.text_title == "My Title"
     assert "Hello world content." in md.text_content
     assert "<h1>My Title</h1>" in md.get_html(title_fallback="fallback")
 
@@ -76,7 +76,7 @@ def test_markdown_file__title_fallback(write_md):
     path = write_md("w.md", "No heading here.\n")
     md = models.MarkdownFile.from_md_path(md_path=path)
 
-    assert md.markdown_title is None
+    assert md.text_title is None
     assert "<h1>fallback</h1>" in md.get_html(title_fallback="fallback")
 
 
