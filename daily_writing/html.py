@@ -46,7 +46,6 @@ def layout(
     return h.html(lang=i18n.get_bcp47(settings.locale))[
         head(),
         h.body[
-            h.input(type="checkbox", id="menu-toggle", hidden=True),
             nav(
                 base_path=settings.base_path,
                 site_name=settings.site_name,
@@ -209,9 +208,10 @@ def burger() -> h.Node:
         "stroke_linejoin": "round",
     }
     return [
-        h.label(
+        h.a(
             "#burger.svg-button",
-            for_="menu-toggle",
+            href="#menu",
+            aria_label="Open menu",
         )[
             h.svg(
                 width="2em",
@@ -224,7 +224,12 @@ def burger() -> h.Node:
                 h.line(".middle-bar", x1=5, y1=12, x2=19, y2=12, **stroke),
                 h.line(".bottom-bar", x1=5, y1=5, x2=19, y2=5, **stroke),
             ],
-        ]
+        ],
+        # When the menu is open the burger morphs into an X, but the link above
+        # still points at #menu (a no-op while it's the current target). This
+        # transparent overlay sits on top only while open and clears the target,
+        # so clicking the X closes the menu.
+        h.a("#burger-close", href="#!", aria_label="Close menu"),
     ]
 
 

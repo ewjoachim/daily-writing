@@ -68,6 +68,21 @@ a {
     line-height: 0;
 }
 
+#burger-close {
+    position: fixed;
+    top: 0;
+    right: 0;
+    margin: 1em;
+    width: 2em;
+    height: 2em;
+    pointer-events: none;
+}
+
+body:has(#menu:target) #burger-close,
+body:has(#menu :target) #burger-close {
+    pointer-events: auto;
+}
+
 
 #burger line {
     transition:
@@ -76,15 +91,18 @@ a {
     transform-origin: center;
 }
 
-body:has(#menu-toggle:checked) #burger .top-bar {
+body:has(#menu:target) #burger .top-bar,
+body:has(#menu :target) #burger .top-bar {
     transform: rotate(45deg) translateY(-.375em);
 }
 
-body:has(#menu-toggle:checked) #burger .middle-bar {
+body:has(#menu:target) #burger .middle-bar,
+body:has(#menu :target) #burger .middle-bar {
     opacity: 0;
 }
 
-body:has(#menu-toggle:checked) #burger .bottom-bar {
+body:has(#menu:target) #burger .bottom-bar,
+body:has(#menu :target) #burger .bottom-bar {
     transform: rotate(-45deg) translateY(.375em);
 }
 
@@ -101,11 +119,13 @@ body:has(#menu-toggle:checked) #burger .bottom-bar {
     top: -100%;
 }
 
-body:has(#menu-toggle:checked) {
+body:has(#menu:target),
+body:has(#menu :target) {
     overflow: hidden;
 }
 
-body:has(#menu-toggle:checked) #menu {
+#menu:target,
+#menu:has(:target) {
     top: 0;
 }
 
