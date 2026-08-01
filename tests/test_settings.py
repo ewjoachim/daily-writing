@@ -4,9 +4,26 @@ import pathlib
 import pydantic
 import pydantic_extra_types.color
 import pytest
+import yarl
 
 from daily_writing import i18n
 from daily_writing import settings as settings_module
+
+
+@pytest.fixture
+def pyproject(tmp_path, monkeypatch):
+    """Factory writing an optional pyproject.toml in a fresh cwd and clearing the
+    cached parse. Returns the (possibly absent) pyproject.toml path."""
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "pyproject.toml"
+
+    def f(content: str | None = None) -> pathlib.Path:
+        if content is not None:
+            path.write_text(content)
+        settings_module._pyproject_project.cache_clear()
+        return path
+
+    return f
 
 
 def test_hex_color():
@@ -116,30 +133,53 @@ def test_settings_properties(dw_settings):
     assert settings.index_colors_hex == ["#ffffff"]
 
 
-def test_default_site_name__from_pyproject(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "pyproject.toml").write_text('[project]\nname = "my-site"\n')
-    settings_module._pyproject_project.cache_clear()
+def test_default_site_name__from_pyproject(pyproject):
+    pyproject('[project]\nname = "my-site"\n')
 
     assert settings_module._default_site_name({}) == "My Site"
 
 
-def test_default_site_name__from_source_dir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    settings_module._pyproject_project.cache_clear()
+def test_default_site_name__from_source_dir(tmp_path, pyproject):
+    pyproject()
 
     result = settings_module._default_site_name({"source_dir": tmp_path})
     assert result == settings_module._slug_to_title(tmp_path.resolve().name)
 
 
-def test_default_author__from_pyproject(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "x"\nauthors = [{name = "Alice"}]\n'
-    )
-    settings_module._pyproject_project.cache_clear()
+def test_default_author__from_pyproject(pyproject):
+    pyproject('[project]\nname = "x"\nauthors = [{name = "Alice"}]\n')
 
     assert settings_module._default_author() == "Alice"
+
+
+def test_default_site_url__from_pyproject(pyproject):
+    pyproject('[project]\nname = "x"\nurls = {Homepage = "https://example.com/blog"}\n')
+
+    assert settings_module._default_site_url() == yarl.URL("https://example.com/blog")
+
+
+def test_default_site_url__fallback(pyproject):
+    pyproject('[project]\nname = "x"\n')
+
+    assert settings_module._default_site_url() == yarl.URL("http://localhost:8000")
+
+
+def test_default_repository_url__from_pyproject(pyproject, monkeypatch):
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
+    monkeypatch.delenv("GITHUB_SERVER_URL", raising=False)
+    pyproject(
+        '[project]\nname = "x"\nurls = {Repository = "https://github.com/me/repo"}\n'
+    )
+
+    assert settings_module._default_repository_url() == "https://github.com/me/repo"
+
+
+def test_default_repository_url__from_github_env(pyproject, monkeypatch):
+    monkeypatch.setenv("GITHUB_REPOSITORY", "me/repo")
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+    pyproject()
+
+    assert settings_module._default_repository_url() == "https://github.com/me/repo"
 
 
 @pytest.fixture(autouse=True)
