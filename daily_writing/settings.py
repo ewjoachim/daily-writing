@@ -239,7 +239,14 @@ def _default_repository_url() -> str:
         return str(yarl.URL(github_server) / repo)
     project = _pyproject_project()
     urls = project.get("urls", {})
-    return urls.get("Repository") or urls.get("Repository")
+    return urls.get("Repository")
+
+
+def _default_site_url() -> yarl.URL:
+    project = _pyproject_project()
+    urls = project.get("urls", {})
+    url = urls.get("Homepage", "http://localhost:8000")
+    return yarl.URL(url)
 
 
 class Settings(
@@ -317,8 +324,11 @@ class Settings(
     # URLs
     site_url: Annotated[
         yarl.URL,
-        pydantic.Field(description="Website URL. (e.g. https://example.com/path)"),
-    ] = yarl.URL("http://localhost:8000")
+        pydantic.Field(
+            description="Website URL. (e.g. https://example.com/path)",
+            default_factory=_default_site_url,
+        ),
+    ]
 
     repository_url: Annotated[
         str | None,
