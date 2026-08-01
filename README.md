@@ -8,6 +8,35 @@ Daily Writing mainly turns a bunch of markdown files (one per writing, at most o
 day), a configuration file, and a directory of static files into a static HTML website
 that can be deployed.
 
+<table>
+<tr>
+<td width="33%">
+
+![The homepage shows its text and links to the months](doc/homepage-example.png)
+
+<td width="33%">
+
+![The navigation menu with a monthly calendar of all writings, each day colored and labelled with its prompt](doc/menu-example.png)
+
+<td width="33%">
+
+![A single writing's page, with its title, prompt and text](doc/writing-example.png)
+
+<tr>
+<td align="center">
+
+_The homepage, with each month's colors._
+
+<td align="center">
+
+_The menu: a calendar of every writing._
+
+<td align="center">
+
+_A single writing's page._
+
+</table>
+
 Daily Writing offers various features, such as:
 - A page for each writing and a homepage. A menu displaying a calendar with all the
   writing for all months.
