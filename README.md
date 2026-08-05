@@ -213,8 +213,25 @@ jobs:
 Add and edit your markdown files in the repository via Git or via your
 platform's Web interface.
 
-### Online
+### Online, with Sveltia
 Daily-Writing can come with a [CMS](https://github.com/sveltia/sveltia-cms), allowing
 you to get a nice admin interface that doesn't require to interact with Git.
 
 Integration is not yet 100% streamlined, but it's coming.
+
+#### How to avoid using a GitHub Token to log in
+
+While not strictly necessary, it's possible to log into the web interface without a token, though it requires a bit more steps. You will need a [Cloudflare](https://cloudflare.com) account.
+
+Follow the [instructions from this repository](https://github.com/sveltia/sveltia-cms-auth).
+
+> [!NOTE]
+> Step 4 mentions: "Update your Sveltia configuration". You can do it by
+> adding the following to [`daily-writing.toml`](/daily-writing.toml)
+> (replacing values as appropriate)
+> ```toml
+> [cms_config.backend]
+> repo = "{github-username}/{github-repository-name}"
+> name = "github"
+> base_url = "https://<url-of-your-worker>.workers.dev/"
+> ```
