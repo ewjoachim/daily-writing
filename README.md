@@ -138,11 +138,6 @@ through: `daily-writing -h`. Feel free to consult [daily-writing.toml](https://g
 > - Server URL and base path will use Homepage URL in `pyproject.toml` (default to localhost, which only makes sense locally)
 > - Repository URL will be read from standard environment variables if running in GitHub Actions, or from Repository metadata in `pyproject.toml`.
 
-> [!NOTE] There is one extra configuration element: setting the `GITHUB_TOKEN`
-> environment variable will help you avoid rate limiting to GitHub's API. It's not added
-> in the normal configuration elements to avoid accidentally committing it to your
-> repository.
-
 ## CLI
 
 There are 2 main subcommands:
