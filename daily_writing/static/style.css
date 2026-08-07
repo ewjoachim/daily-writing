@@ -36,6 +36,7 @@ a {
 
 
 .markdown-block {
+    width: 100%;
     max-width: 850px;
     margin-top: 50px;
     display: flex;
