@@ -127,10 +127,44 @@ def test_referenced_model(annotation, expected):
 def test_settings_properties(dw_settings):
     settings = dw_settings()
 
-    assert settings.build_static_path == "/static/"
+    assert settings.static_url("style.css") == "/static/style.css"
     assert str(settings.base_path) == "/"
     assert isinstance(settings.color_cycle, settings_module.ColorCycle)
     assert settings.index_colors_hex == ["#ffffff"]
+
+
+@pytest.mark.parametrize(
+    ("site_url", "expected"),
+    [
+        ("http://localhost:8000", "/static/style.css"),
+        ("https://example.com/", "/static/style.css"),
+        ("https://example.com/my-project", "/my-project/static/style.css"),
+        ("https://example.com/my-project/", "/my-project/static/style.css"),
+    ],
+)
+def test_settings_static_url__base_path(dw_settings, site_url, expected):
+    settings = dw_settings(site_url=site_url)
+
+    assert settings.static_url("style.css") == expected
+
+
+def test_settings_url_path__base_path(dw_settings):
+    settings = dw_settings(site_url="https://example.com/my-project")
+
+    assert settings.url_path(pathlib.Path("feed.atom")) == "/my-project/feed.atom"
+    assert settings.url_path("/admin/script.js") == "/my-project/admin/script.js"
+
+
+def test_settings_source_static_url(dw_settings, tmp_path):
+    """A source path is rewritten to where the build serves it from, keeping any
+    subdirectory."""
+    (tmp_path / "sources" / "css").mkdir(parents=True)
+    (tmp_path / "sources" / "css" / "extra.css").write_text("/* extra */")
+    settings = dw_settings(source_static_dir="sources", build_static_dir="assets")
+
+    result = settings.source_static_url(pathlib.Path("sources/css/extra.css"))
+
+    assert result == "/assets/css/extra.css"
 
 
 def test_default_site_name__from_pyproject(pyproject):

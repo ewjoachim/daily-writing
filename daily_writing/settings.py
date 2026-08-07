@@ -519,15 +519,32 @@ class Settings(
     )
 
     @property
-    def build_static_path(self) -> str:
-        path = "/"
-        if self.build_static_dir:
-            path += f"{self.build_static_dir}/"
-        return path
-
-    @property
     def base_path(self) -> yarl.URL:
         return yarl.URL(self.site_url.path)
+
+    def url_path(self, path: str | pathlib.Path) -> str:
+        """Absolute URL path for ``path``, below the site's base path.
+
+        ``site_url`` may carry a path component (a GitHub Pages project site is
+        served under ``/<repo>/``), so links built from the domain root alone
+        would 404 there.
+        """
+        return str(self.base_path / str(path).lstrip("/"))
+
+    def static_url(self, filename: str | pathlib.Path) -> str:
+        return self.url_path(self.build_static_dir / filename)
+
+    @property
+    def source_static_path(self) -> pathlib.Path:
+        return self.source_dir / self.source_static_dir
+
+    def source_static_url(self, path: pathlib.Path) -> str:
+        """URL for a file configured by its path in the source static folder.
+
+        Settings like ``extra_css`` name a file that must exist at build time, so they
+        are given as source paths, while the build serves it from ``build_static_dir``.
+        """
+        return self.static_url(path.relative_to(self.source_static_path))
 
     @property
     def color_cycle(self) -> ColorCycle:

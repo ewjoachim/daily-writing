@@ -38,7 +38,9 @@ def layout(
             ]
         )
     footer.append(
-        h.a(href=f"/{settings.atom_path}", target="_blank")[settings.feed_name]
+        h.a(href=settings.url_path(settings.atom_path), target="_blank")[
+            settings.feed_name
+        ]
     )
     footer_elements: list[str | h.Node] = [" | "] * (2 * len(footer) - 1)
     # Intersperse | in list
@@ -92,19 +94,19 @@ def head(
                 h.link(
                     rel="stylesheet",
                     type="text/css",
-                    href=f"{settings.build_static_path}{extra_css}?{utils.cache_bust()}",
+                    href=f"{settings.source_static_url(extra_css)}?{utils.cache_bust()}",
                 )
                 for extra_css in settings.extra_css
             ],
             h.link(
                 rel="stylesheet",
                 type="text/css",
-                href=f"{settings.build_static_path}style.css?{utils.cache_bust()}",
+                href=f"{settings.static_url('style.css')}?{utils.cache_bust()}",
             ),
             h.link(
                 rel="stylesheet",
                 type="text/css",
-                href=f"{settings.build_static_path}fonts.css?{utils.cache_bust()}",
+                href=f"{settings.static_url(settings.fonts_css_filename)}?{utils.cache_bust()}",
             ),
             favicons(),
             h.link(
@@ -127,7 +129,7 @@ def favicons(
             rel=icon_link.rel,
             type=icon_link.type,
             sizes=icon_link.sizes,
-            href=f"/{settings.build_static_dir}/{icon_link.href}",
+            href=settings.static_url(icon_link.href),
         )
         for icon_link in settings.icon_links
     ]

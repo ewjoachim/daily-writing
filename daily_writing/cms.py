@@ -126,17 +126,17 @@ def cms_artifacts(
         ),
         path=script_path,
     )
-    config_url = settings.build_cms_dir / "config.json"
+    config_path = settings.build_cms_dir / "config.json"
     yield artifacts.TextArtifact(
         path=settings.build_cms_dir / "index.html",
         contents=get_cms_index(
             title=f"{settings.site_name} - Admin",
-            script_url=f"/{script_path}",
-            config_url=f"/{config_url}",
+            script_url=settings.url_path(script_path),
+            config_url=settings.url_path(config_path),
         ),
     )
     yield artifacts.TextArtifact(
-        path=config_url,
+        path=config_path,
         contents=get_cms_config(settings=settings),
     )
 
@@ -179,7 +179,7 @@ def get_cms_config(settings: settings_module.Settings) -> str:
 
     config = {
         "media_folder": f"/{settings.build_static_dir}",
-        "public_folder": f"/{settings.build_static_dir}",
+        "public_folder": settings.url_path(settings.build_static_dir),
         "singletons": [
             get_config_singleton(),
             get_homepage_singleton(homepage_path=settings.homepage_path),
@@ -187,9 +187,7 @@ def get_cms_config(settings: settings_module.Settings) -> str:
         "collections": [get_writings_collection()],
         "site_url": str(settings.site_url),
         "logo": (
-            {"src": f"/{settings.source_static_dir / settings.logo}"}
-            if settings.logo
-            else None
+            {"src": settings.static_url(settings.logo)} if settings.logo else None
         ),
         "app_title": f"{settings.site_name} - Admin",
         "editor": {"preview": False},
