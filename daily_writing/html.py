@@ -60,7 +60,8 @@ def layout(
         ],
         h.script[
             markupsafe.Markup("""
-const ws = new WebSocket("ws://127.0.0.1:8000/ws");
+const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+const ws = new WebSocket(`${scheme}://${window.location.host}/ws`);
 ws.onmessage = () => window.location.reload();
 """)
         ]

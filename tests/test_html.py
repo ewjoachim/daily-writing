@@ -197,3 +197,5 @@ def test_index_page__injects_hot_reload(dw_settings, page_metadata):
     )
 
     assert "WebSocket" in result
+    # Derived from the page's own origin, so any host/port the server runs on works.
+    assert "window.location.host" in result
