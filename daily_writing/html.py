@@ -142,7 +142,11 @@ def social_preview_meta(
     page_metadata: models.PageMetadata,
 ):
     url = str(settings.site_url / (page_metadata.url_path or ""))
-    image = str(settings.site_url / page_metadata.social_preview_url)
+    image = str(
+        (settings.site_url / str(page_metadata.social_preview_path)).with_query(
+            hash=page_metadata.social_preview_signature
+        )
+    )
     return [
         h.meta(property="og:title", content=page_metadata.title),
         h.meta(property="og:type", content="website"),
@@ -154,10 +158,7 @@ def social_preview_meta(
         ),
         h.meta(property="og:image:width", content=f"{settings.social_preview_width}"),
         h.meta(property="og:image:height", content=f"{settings.social_preview_height}"),
-        h.meta(
-            property="og:image",
-            content=str(settings.site_url / page_metadata.social_preview_url),
-        ),
+        h.meta(property="og:image", content=image),
         h.meta(
             property="og:image:alt",
             content=page_metadata.description,

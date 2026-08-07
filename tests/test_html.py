@@ -58,6 +58,29 @@ def test_redirect_page(dw_settings, page_metadata):
     assert "https://foo.bar/target/" in result
 
 
+def test_index_page__social_preview_url(dw_settings, page_metadata):
+    """The cache-busting query must stay a query, not be encoded into the path."""
+    settings = dw_settings(site_url="https://foo.bar/my-project")
+    markdown_file = models.MarkdownFile.from_md_path(md_path=settings.homepage_path)
+
+    result = str(
+        html.index_page(
+            settings=settings,
+            context=build_context.BuildContext(),
+            writings=[],
+            markdown_file=markdown_file,
+            page_metadata=page_metadata(),
+            colors=["#ffffff"],
+            node_cache={},
+        )
+    )
+
+    expected = "https://foo.bar/my-project/social_previews/index.png?hash=abcd1234"
+    assert f'property="og:image" content="{expected}"' in result
+    assert f'name="twitter:image" content="{expected}"' in result
+    assert "%3F" not in result
+
+
 def test_index_page(dw_settings, page_metadata):
     settings = dw_settings()
     markdown_file = models.MarkdownFile.from_md_path(md_path=settings.homepage_path)

@@ -65,13 +65,6 @@ def test_build__includes_cms(
     assert (tmp_path / "_build/admin/config.json").is_file()
 
 
-def test_get_social_preview_url():
-    result = build.get_social_preview_url(
-        path=pathlib.Path("social_previews/foo.png"), signature="abcd1234"
-    )
-    assert result == "social_previews/foo.png?hash=abcd1234"
-
-
 def test_static_artifacts(dw_settings, tmp_path):
     (tmp_path / "static").mkdir()
     (tmp_path / "static" / "foo.txt").write_text("bar")

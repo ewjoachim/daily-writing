@@ -78,7 +78,8 @@ def page_metadata():
             "title": "Title",
             "url_path": "",
             "description": "Description",
-            "social_preview_url": "social_previews/index.png?hash=abcd1234",
+            "social_preview_path": pathlib.Path("social_previews/index.png"),
+            "social_preview_signature": "abcd1234",
             "repository_url": None,
         }
         return models.PageMetadata(**{**defaults, **kwargs})

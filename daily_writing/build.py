@@ -132,9 +132,8 @@ def writing_artifacts(
         title=writing.full_title,
         url_path=writing.url,
         description=writing.markdown_file.description,
-        social_preview_url=get_social_preview_url(
-            path=social_preview_path, signature=social_preview_contents.signature
-        ),
+        social_preview_path=social_preview_path,
+        social_preview_signature=social_preview_contents.signature,
         repository_url=(
             utils.get_repository_url_for_file(
                 repository_url=settings.repository_url,
@@ -219,15 +218,12 @@ def index_artifacts(
 
     markdown_file = models.MarkdownFile.from_md_path(md_path=settings.homepage_path)
 
-    social_preview_url = get_social_preview_url(
-        path=social_preview_path, signature=social_preview_contents.signature
-    )
-
     page_metadata = models.PageMetadata(
         title=settings.site_name,
         url_path="",
         description=markdown_file.description,
-        social_preview_url=social_preview_url,
+        social_preview_path=social_preview_path,
+        social_preview_signature=social_preview_contents.signature,
         repository_url=(
             utils.get_repository_url_for_file(
                 repository_url=settings.repository_url,
@@ -257,10 +253,6 @@ def index_artifacts(
             contents=social_preview_contents, path=social_preview_path
         ),
     ]
-
-
-def get_social_preview_url(path: pathlib.Path, signature: str) -> str:
-    return f"{path}?hash={signature}"
 
 
 def social_preview_artifact(
