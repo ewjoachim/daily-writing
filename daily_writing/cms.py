@@ -176,9 +176,10 @@ def get_cms_index(title: str, script_url: str, config_url: str) -> str:
 
 
 def get_cms_config(settings: settings_module.Settings) -> str:
-
     config = {
-        "media_folder": f"/{settings.build_static_dir}",
+        # Uploads are committed to the source tree, then copied to the build dir,
+        # so these two are the same folder seen from the repo and from a browser.
+        "media_folder": f"/{settings.source_static_dir}",
         "public_folder": settings.url_path(settings.build_static_dir),
         "singletons": [
             get_config_singleton(),
