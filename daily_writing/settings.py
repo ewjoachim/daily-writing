@@ -554,6 +554,20 @@ class Settings(
     def index_colors_hex(self) -> list[str]:
         return [hex_color(c) for c in self.index_colors]
 
+    @pydantic.model_validator(mode="after")
+    def check_extra_css_is_served(self) -> Self:
+        outside = [
+            path
+            for path in self.extra_css
+            if not path.is_relative_to(self.source_static_path)
+        ]
+        if outside:
+            raise ValueError(
+                f"extra_css entries must be under {self.source_static_path} to be "
+                f"copied to the built site: {', '.join(str(p) for p in outside)}"
+            )
+        return self
+
     @override
     @classmethod
     def settings_customise_sources(

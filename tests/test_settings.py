@@ -167,6 +167,13 @@ def test_settings_source_static_url(dw_settings, tmp_path):
     assert result == "/assets/css/extra.css"
 
 
+def test_settings_extra_css__outside_source_static_dir(dw_settings, tmp_path):
+    (tmp_path / "elsewhere.css").write_text("/* nope */")
+
+    with pytest.raises(pydantic.ValidationError, match="must be under"):
+        dw_settings(extra_css=["elsewhere.css"])
+
+
 def test_default_site_name__from_pyproject(pyproject):
     pyproject('[project]\nname = "my-site"\n')
 
