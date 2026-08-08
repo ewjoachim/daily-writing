@@ -17,10 +17,10 @@
 | daily\_writing/models.py          |      256 |       18 |       56 |        7 |     92% |97, 292-293, 302, 414-415, 419, 422-424, 426-427, 466-469, 476-478, 497 |
 | daily\_writing/normalize.py       |       44 |       14 |       10 |        2 |     63% |25-44, 74-75, 92-93 |
 | daily\_writing/serve.py           |       60 |       41 |        4 |        0 |     30% |    31-111 |
-| daily\_writing/settings.py        |      198 |        5 |       24 |        0 |     98% |183-184, 310, 613, 625 |
+| daily\_writing/settings.py        |      195 |        5 |       22 |        0 |     98% |182-183, 309, 611, 623 |
 | daily\_writing/social\_preview.py |       68 |        1 |       10 |        1 |     97% |        64 |
 | daily\_writing/utils.py           |       62 |        0 |       20 |        0 |    100% |           |
-| **TOTAL**                         | **1304** |  **108** |  **284** |   **33** | **90%** |           |
+| **TOTAL**                         | **1301** |  **108** |  **282** |   **33** | **90%** |           |
 
 
 ## Setup coverage badge
