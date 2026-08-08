@@ -219,10 +219,10 @@ def get_homepage_singleton(homepage_path: pathlib.Path) -> dict[str, typing.Any]
         "label": "Home page",
         "file": str(homepage_path),
         "icon": "home",
-        "fields": [
-            to_sveltia(field)
-            for field in settings_module.Field.from_model(settings_module.Settings)
-        ],
+        # Body only: the homepage file doubles as the repository README, and any
+        # front matter we'd add here would render as a stray table on the repo
+        # landing page. Its description falls back to an excerpt of the body.
+        "fields": [{"name": "body", "widget": "markdown"}],
     }
 
 
