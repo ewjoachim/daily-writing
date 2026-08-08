@@ -18,12 +18,11 @@ def dw_settings(tmp_path: pathlib.Path, monkeypatch):
     def f(**kwargs: Any) -> settings_module.Settings:
         defaults: dict[str, Any] = {
             "site_url": yarl.URL("https://foo.bar/"),
-            # Make tests deterministic:
             "site_name": "Site Name",
             "timezone": "Europe/Paris",
             "locale": i18n.Locale.from_string("fr-fr"),
         }
-        return settings_module.Settings(**{**defaults, **kwargs})
+        return settings_module.Settings(**(defaults | kwargs))
 
     return f
 

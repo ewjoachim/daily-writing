@@ -217,8 +217,6 @@ platform's Web interface.
 Daily-Writing can come with a [CMS](https://github.com/sveltia/sveltia-cms), allowing
 you to get a nice admin interface that doesn't require to interact with Git.
 
-Integration is not yet 100% streamlined, but it's coming.
-
 #### How to avoid using a GitHub Token to log in
 
 While not strictly necessary, it's possible to log into the web interface without a token, though it requires a bit more steps. You will need a [Cloudflare](https://cloudflare.com) account.

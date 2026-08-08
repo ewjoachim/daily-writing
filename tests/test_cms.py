@@ -12,6 +12,15 @@ def test_cms_config_uses_homepage_path(dw_settings):
     assert '"file": "README.md"' in config
 
 
+def test_cms_config_homepage_edits_the_body(dw_settings):
+    """The homepage singleton edits page content, not the site settings."""
+    config = json.loads(cms.get_cms_config(settings=dw_settings()))
+
+    homepage = next(s for s in config["singletons"] if s["name"] == "homepage")
+
+    assert homepage["fields"] == [{"name": "body", "widget": "markdown"}]
+
+
 def test_cms_config_media_folders(dw_settings):
     """media_folder is where uploads are committed, public_folder where they are
     served from: distinct settings, and the latter carries the site's base path."""

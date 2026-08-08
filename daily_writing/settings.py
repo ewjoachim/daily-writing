@@ -1,7 +1,6 @@
 import datetime
 import enum
 import functools
-import os
 import pathlib
 import tomllib
 import types
@@ -232,11 +231,11 @@ def _default_author() -> str | None:
     return None
 
 
-def _default_repository_url() -> str:
-    if (repo := os.environ.get("GITHUB_REPOSITORY")) and (
-        github_server := os.environ.get("GITHUB_SERVER_URL")
-    ):
-        return str(yarl.URL(github_server) / repo)
+def _default_repository_url() -> str | None:
+    # Deliberately forge-agnostic: no CI environment sniffing here. Whoever knows
+    # which forge this is — the project template, or the author — sets
+    # `repository_url` in daily-writing.toml, alongside the matching
+    # `repository_file_url_prefix`.
     project = _pyproject_project()
     urls = project.get("urls", {})
     return urls.get("Repository")
@@ -301,7 +300,7 @@ class Settings(
         pydantic.Field(
             description="Text of the link to the corresponding repositry page in the footer"
         ),
-    ] = "GitHub"
+    ] = "Source"
     feed_name: Annotated[
         str,
         pydantic.Field(description="Text of the link to the RSS feed in the footer"),
@@ -525,9 +524,8 @@ class Settings(
     def url_path(self, path: str | pathlib.Path) -> str:
         """Absolute URL path for ``path``, below the site's base path.
 
-        ``site_url`` may carry a path component (a GitHub Pages project site is
-        served under ``/<repo>/``), so links built from the domain root alone
-        would 404 there.
+        ``site_url`` may carry a path component if the site is not served at the root of
+        the domain, so links built from the domain root alone would 404 there.
         """
         return str(self.base_path / str(path).lstrip("/"))
 
