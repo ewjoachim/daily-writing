@@ -205,22 +205,12 @@ def test_default_site_url__fallback(pyproject):
     assert settings_module._default_site_url() == yarl.URL("http://localhost:8000")
 
 
-def test_default_repository_url__from_pyproject(pyproject, monkeypatch):
-    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
-    monkeypatch.delenv("GITHUB_SERVER_URL", raising=False)
+def test_default_repository_url__from_pyproject(pyproject):
     pyproject(
-        '[project]\nname = "x"\nurls = {Repository = "https://github.com/me/repo"}\n'
+        '[project]\nname = "x"\nurls = {Repository = "https://codeberg.org/me/repo"}\n'
     )
 
-    assert settings_module._default_repository_url() == "https://github.com/me/repo"
-
-
-def test_default_repository_url__from_github_env(pyproject, monkeypatch):
-    monkeypatch.setenv("GITHUB_REPOSITORY", "me/repo")
-    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
-    pyproject()
-
-    assert settings_module._default_repository_url() == "https://github.com/me/repo"
+    assert settings_module._default_repository_url() == "https://codeberg.org/me/repo"
 
 
 @pytest.fixture(autouse=True)
