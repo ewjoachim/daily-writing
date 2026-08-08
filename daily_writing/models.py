@@ -561,5 +561,6 @@ class PageMetadata:
     title: str | None
     url_path: str | None
     description: str
-    social_preview_url: str
+    social_preview_path: pathlib.Path
+    social_preview_signature: str
     repository_url: str | None

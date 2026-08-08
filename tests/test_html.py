@@ -58,6 +58,29 @@ def test_redirect_page(dw_settings, page_metadata):
     assert "https://foo.bar/target/" in result
 
 
+def test_index_page__social_preview_url(dw_settings, page_metadata):
+    """The cache-busting query must stay a query, not be encoded into the path."""
+    settings = dw_settings(site_url="https://foo.bar/my-project")
+    markdown_file = models.MarkdownFile.from_md_path(md_path=settings.homepage_path)
+
+    result = str(
+        html.index_page(
+            settings=settings,
+            context=build_context.BuildContext(),
+            writings=[],
+            markdown_file=markdown_file,
+            page_metadata=page_metadata(),
+            colors=["#ffffff"],
+            node_cache={},
+        )
+    )
+
+    expected = "https://foo.bar/my-project/social_previews/index.png?hash=abcd1234"
+    assert f'property="og:image" content="{expected}"' in result
+    assert f'name="twitter:image" content="{expected}"' in result
+    assert "%3F" not in result
+
+
 def test_index_page(dw_settings, page_metadata):
     settings = dw_settings()
     markdown_file = models.MarkdownFile.from_md_path(md_path=settings.homepage_path)
@@ -76,6 +99,38 @@ def test_index_page(dw_settings, page_metadata):
 
     assert "<html" in result
     assert settings.site_name in result
+
+
+def test_index_page__asset_urls(dw_settings, page_metadata, tmp_path):
+    """Every asset link sits under the base path, and extra_css is served from the
+    static dir rather than the source path it is configured with."""
+    (tmp_path / "static" / "css").mkdir(parents=True)
+    (tmp_path / "static" / "css" / "extra.css").write_text("/* extra */")
+    settings = dw_settings(
+        site_url="https://foo.bar/my-project",
+        extra_css=["static/css/extra.css"],
+        icon_links=[settings_module.IconLink(rel="icon", href="favicon.ico")],
+    )
+    markdown_file = models.MarkdownFile.from_md_path(md_path=settings.homepage_path)
+
+    result = str(
+        html.index_page(
+            settings=settings,
+            context=build_context.BuildContext(),
+            writings=[],
+            markdown_file=markdown_file,
+            page_metadata=page_metadata(),
+            colors=["#ffffff"],
+            node_cache={},
+        )
+    )
+
+    assert '"/my-project/static/css/extra.css?' in result
+    assert '"/my-project/static/style.css?' in result
+    assert '"/my-project/static/fonts.css?' in result
+    assert '"/my-project/static/favicon.ico"' in result
+    assert '"/my-project/feed.atom"' in result
+    assert '"/static/' not in result
 
 
 def test_writing_page__full_navigation(dw_settings, page_metadata, month_writings):
@@ -142,3 +197,5 @@ def test_index_page__injects_hot_reload(dw_settings, page_metadata):
     )
 
     assert "WebSocket" in result
+    # Derived from the page's own origin, so any host/port the server runs on works.
+    assert "window.location.host" in result

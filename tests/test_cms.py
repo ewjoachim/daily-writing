@@ -1,3 +1,5 @@
+import json
+
 from daily_writing import cms
 
 
@@ -8,6 +10,21 @@ def test_cms_config_uses_homepage_path(dw_settings):
 
     assert '"name": "homepage"' in config
     assert '"file": "README.md"' in config
+
+
+def test_cms_config_media_folders(dw_settings):
+    """media_folder is where uploads are committed, public_folder where they are
+    served from: distinct settings, and the latter carries the site's base path."""
+    settings = dw_settings(
+        site_url="https://example.com/my-project",
+        source_static_dir="sources",
+        build_static_dir="assets",
+    )
+
+    config = json.loads(cms.get_cms_config(settings=settings))
+
+    assert config["media_folder"] == "/sources"
+    assert config["public_folder"] == "/my-project/assets"
 
 
 def test_get_cms_script__downloads_then_uses_cache(httpx_mock, tmp_path):

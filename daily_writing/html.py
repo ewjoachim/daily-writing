@@ -38,7 +38,9 @@ def layout(
             ]
         )
     footer.append(
-        h.a(href=f"/{settings.atom_path}", target="_blank")[settings.feed_name]
+        h.a(href=settings.url_path(settings.atom_path), target="_blank")[
+            settings.feed_name
+        ]
     )
     footer_elements: list[str | h.Node] = [" | "] * (2 * len(footer) - 1)
     # Intersperse | in list
@@ -58,7 +60,8 @@ def layout(
         ],
         h.script[
             markupsafe.Markup("""
-const ws = new WebSocket("ws://127.0.0.1:8000/ws");
+const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+const ws = new WebSocket(`${scheme}://${window.location.host}/ws`);
 ws.onmessage = () => window.location.reload();
 """)
         ]
@@ -92,19 +95,19 @@ def head(
                 h.link(
                     rel="stylesheet",
                     type="text/css",
-                    href=f"{settings.build_static_path}{extra_css}?{utils.cache_bust()}",
+                    href=f"{settings.source_static_url(extra_css)}?{utils.cache_bust()}",
                 )
                 for extra_css in settings.extra_css
             ],
             h.link(
                 rel="stylesheet",
                 type="text/css",
-                href=f"{settings.build_static_path}style.css?{utils.cache_bust()}",
+                href=f"{settings.static_url('style.css')}?{utils.cache_bust()}",
             ),
             h.link(
                 rel="stylesheet",
                 type="text/css",
-                href=f"{settings.build_static_path}fonts.css?{utils.cache_bust()}",
+                href=f"{settings.static_url(settings.fonts_css_filename)}?{utils.cache_bust()}",
             ),
             favicons(),
             h.link(
@@ -127,7 +130,7 @@ def favicons(
             rel=icon_link.rel,
             type=icon_link.type,
             sizes=icon_link.sizes,
-            href=f"/{settings.build_static_dir}/{icon_link.href}",
+            href=settings.static_url(icon_link.href),
         )
         for icon_link in settings.icon_links
     ]
@@ -140,7 +143,11 @@ def social_preview_meta(
     page_metadata: models.PageMetadata,
 ):
     url = str(settings.site_url / (page_metadata.url_path or ""))
-    image = str(settings.site_url / page_metadata.social_preview_url)
+    image = str(
+        (settings.site_url / str(page_metadata.social_preview_path)).with_query(
+            hash=page_metadata.social_preview_signature
+        )
+    )
     return [
         h.meta(property="og:title", content=page_metadata.title),
         h.meta(property="og:type", content="website"),
@@ -152,10 +159,7 @@ def social_preview_meta(
         ),
         h.meta(property="og:image:width", content=f"{settings.social_preview_width}"),
         h.meta(property="og:image:height", content=f"{settings.social_preview_height}"),
-        h.meta(
-            property="og:image",
-            content=str(settings.site_url / page_metadata.social_preview_url),
-        ),
+        h.meta(property="og:image", content=image),
         h.meta(
             property="og:image:alt",
             content=page_metadata.description,

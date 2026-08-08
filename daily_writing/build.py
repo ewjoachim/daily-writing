@@ -89,13 +89,16 @@ def static_artifacts(
     framework_static = pathlib.Path(__file__).parent / "static"
     project_static = settings.source_dir / settings.source_static_dir
 
+    # One artifact per file rather than per tree, so that a project file shadowing a
+    # framework one just overwrites it, whether it sits at the top level or not.
     yield from [
         artifacts.FileArtifact(
-            path=p.relative_to(source.parent),
+            path=settings.build_static_dir / p.relative_to(source),
             source=p,
         )
         for source in [framework_static, project_static]
-        for p in source.iterdir()
+        for p in source.rglob("*")
+        if p.is_file()
     ]
 
 
@@ -132,9 +135,8 @@ def writing_artifacts(
         title=writing.full_title,
         url_path=writing.url,
         description=writing.markdown_file.description,
-        social_preview_url=get_social_preview_url(
-            path=social_preview_path, signature=social_preview_contents.signature
-        ),
+        social_preview_path=social_preview_path,
+        social_preview_signature=social_preview_contents.signature,
         repository_url=(
             utils.get_repository_url_for_file(
                 repository_url=settings.repository_url,
@@ -219,15 +221,12 @@ def index_artifacts(
 
     markdown_file = models.MarkdownFile.from_md_path(md_path=settings.homepage_path)
 
-    social_preview_url = get_social_preview_url(
-        path=social_preview_path, signature=social_preview_contents.signature
-    )
-
     page_metadata = models.PageMetadata(
         title=settings.site_name,
         url_path="",
         description=markdown_file.description,
-        social_preview_url=social_preview_url,
+        social_preview_path=social_preview_path,
+        social_preview_signature=social_preview_contents.signature,
         repository_url=(
             utils.get_repository_url_for_file(
                 repository_url=settings.repository_url,
@@ -257,10 +256,6 @@ def index_artifacts(
             contents=social_preview_contents, path=social_preview_path
         ),
     ]
-
-
-def get_social_preview_url(path: pathlib.Path, signature: str) -> str:
-    return f"{path}?hash={signature}"
 
 
 def social_preview_artifact(
