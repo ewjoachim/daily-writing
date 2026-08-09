@@ -9,6 +9,9 @@ on:
       - "*"
   workflow_dispatch:
 
+env:
+  UV_FROZEN: "true"
+
 permissions:
   contents: read
 
