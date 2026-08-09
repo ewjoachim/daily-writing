@@ -10,6 +10,7 @@ from collections.abc import Iterable
 from typing import Annotated, Any, Literal, Self, override
 
 import pydantic
+import pydantic_core
 import pydantic_extra_types.color
 import pydantic_settings
 import tzlocal
@@ -35,9 +36,13 @@ class CMSFieldOverride:
     Any keyword arguments are forwarded verbatim into the Sveltia field config.
     Attach to a setting through its annotation, e.g.
     ``Annotated[..., pydantic.Field(...), CMSFieldOverride(widget="image")]``.
+
+    ``exclude=True`` keeps the setting out of the CMS entirely — for the ones that
+    steer the build rather than the site, and would only be a footgun in a form.
     """
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, *, exclude: bool = False, **kwargs: Any):
+        self.exclude: bool = exclude
         self.kwargs: dict[str, Any] = kwargs
 
 
@@ -90,17 +95,24 @@ class Field:
         """The default as a JSON-serializable value, or None when there is none."""
         if not self.has_default:
             return None
-        return pydantic.TypeAdapter(self.annotation).dump_python(
-            self.default, mode="json"
-        )
+        try:
+            return pydantic.TypeAdapter(self.annotation).dump_python(
+                self.default, mode="json"
+            )
+        except pydantic_core.PydanticSerializationError:
+            # Some defaults wrap a third-party object with no JSON form (a Babel
+            # locale, say). Describing them is a nicety, so drop it rather than
+            # fail the whole CMS config over one field.
+            return None
 
     @classmethod
     def from_model(cls, model: type[pydantic.BaseModel]) -> list[Self]:
         """Introspect a pydantic model into a flat list of ``Field``."""
-        return [
+        fields = (
             cls.from_field_info(name=name, field_info=field_info)
             for name, field_info in model.model_fields.items()
-        ]
+        )
+        return [field for field in fields if not field.override.exclude]
 
     @classmethod
     def from_field_info(cls, name: str, field_info: pydantic.fields.FieldInfo) -> Self:
@@ -113,9 +125,13 @@ class Field:
             ),
             CMSFieldOverride(),
         )
+        # Factories are called, not skipped: they resolve against the machine and
+        # the project doing the build, which is exactly what a blank field will
+        # fall back to. `validated_data` is empty because the factories that take
+        # it only consult it for values that have their own fallback.
         default = (
-            field_info.default
-            if not field_info.is_required() and field_info.default_factory is None
+            field_info.get_default(call_default_factory=True, validated_data={})
+            if not field_info.is_required()
             else MISSING
         )
         model = _referenced_model(field_info.annotation)
@@ -298,7 +314,7 @@ class Settings(
     repository_link_name: Annotated[
         str,
         pydantic.Field(
-            description="Text of the link to the corresponding repositry page in the footer"
+            description="Text of the link to the corresponding repository page in the footer"
         ),
     ] = "Source"
     feed_name: Annotated[
@@ -341,18 +357,21 @@ class Settings(
         pydantic.Field(
             description="Path element to add after the repository URL so that adding the path to a file to this yields a valid URL to a file on the repository"
         ),
+        CMSFieldOverride(exclude=True),
     ] = "blob/HEAD"
     atom_path: Annotated[
         pathlib.Path,
         pydantic.Field(
             description="Path at which the Atom feed file will be written in the build directory (no leading slash)."
         ),
+        CMSFieldOverride(exclude=True),
     ] = pathlib.Path("feed.atom")
     homepage_path: Annotated[
         pydantic.FilePath,
         pydantic.Field(
             description="Path to the file for which content will be used for the homepage of the site."
         ),
+        CMSFieldOverride(exclude=True),
     ] = pathlib.Path("README.md")
 
     # Style
@@ -436,19 +455,19 @@ class Settings(
         pydantic.Field(
             description="Verbosity level (0=Critical, 1=Error, 2=Warning, 3=Info, 4=debug)"
         ),
-        CMSFieldOverride(hint="Verbosity level"),
+        CMSFieldOverride(exclude=True),
     ] = "INFO"
 
     include_cms: Annotated[
         bool,
         pydantic.Field(description="Whether to include a Sveltia CMS admin"),
-        CMSFieldOverride(widget="hidden"),
+        CMSFieldOverride(exclude=True),
     ] = True
 
     cms_config: Annotated[
         dict[str, pydantic.JsonValue],
         pydantic.Field(description="Additional config for the CMS"),
-        CMSFieldOverride(widget="hidden"),
+        CMSFieldOverride(exclude=True),
     ] = {}
 
     sveltia_version: Annotated[
@@ -456,7 +475,7 @@ class Settings(
         pydantic.Field(
             description="Version of Sveltia to pull or 'latest' for the latest one (download is cached unless latest is used)"
         ),
-        CMSFieldOverride(widget="hidden"),
+        CMSFieldOverride(exclude=True),
     ] = "latest"
 
     # Dirs
@@ -465,6 +484,7 @@ class Settings(
         pydantic.Field(
             description="Directory containing the source files for the website"
         ),
+        CMSFieldOverride(exclude=True),
     ] = pathlib.Path(".")
 
     build_dir: Annotated[
@@ -472,6 +492,7 @@ class Settings(
         pydantic.Field(
             description="Directory in which to place the resulting website. If it exists, it will be emptied at the start of the run."
         ),
+        CMSFieldOverride(exclude=True),
     ] = pathlib.Path("_build")
 
     cache_dir: Annotated[
@@ -479,6 +500,7 @@ class Settings(
         pydantic.Field(
             description="Directory containing cached assets to simplify subsequent builds."
         ),
+        CMSFieldOverride(exclude=True),
     ] = pathlib.Path("_cache")
 
     source_static_dir: Annotated[
@@ -486,6 +508,7 @@ class Settings(
         pydantic.Field(
             description="Path where the static assets are stored. All files in here will be copied as-is to the build static dir."
         ),
+        CMSFieldOverride(exclude=True),
     ] = pathlib.Path("static")
 
     build_static_dir: Annotated[
@@ -493,6 +516,7 @@ class Settings(
         pydantic.Field(
             description="Path to which static should be stored in the build dir. Will likely be a part of the URL for static files."
         ),
+        CMSFieldOverride(exclude=True),
     ] = pathlib.Path("static")
 
     build_cms_dir: Annotated[
@@ -500,6 +524,7 @@ class Settings(
         pydantic.Field(
             description="Path to which the CMS will be written to. Will likely be the URL path of the CMS."
         ),
+        CMSFieldOverride(exclude=True),
     ] = pathlib.Path("admin")
 
     fonts_css_filename: Annotated[
@@ -507,15 +532,22 @@ class Settings(
         pydantic.Field(
             description="Name of the generated css file containing font definitions."
         ),
+        CMSFieldOverride(exclude=True),
     ] = "fonts.css"
 
     # Cutoff date
-    max_date: datetime.date = pydantic.Field(
-        default_factory=lambda data: datetime.datetime.now(
-            tz=zoneinfo.ZoneInfo(data.get("timezone") or tzlocal.get_localzone().key)
-        ).date(),
-        description="Writings for dates strictly after this date will be ignored in build. Defaults to today.",
-    )
+    max_date: Annotated[
+        datetime.date,
+        pydantic.Field(
+            default_factory=lambda data: datetime.datetime.now(
+                tz=zoneinfo.ZoneInfo(
+                    data.get("timezone") or tzlocal.get_localzone().key
+                )
+            ).date(),
+            description="Writings for dates strictly after this date will be ignored in build. Defaults to today.",
+        ),
+        CMSFieldOverride(exclude=True),
+    ]
 
     @property
     def base_path(self) -> yarl.URL:

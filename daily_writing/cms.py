@@ -22,10 +22,15 @@ logger = logging.getLogger("daily_writing")
 def _is_empty_default(value: typing.Any) -> bool:
     """Check if a serialized default value is empty (null, empty string, empty list, etc.).
 
-    Empty defaults are not useful for CMS pre-population and cause unnecessary
-    values to be written to content files.
+    There is nothing worth telling the user about an empty default.
     """
     return value is None or (isinstance(value, str | list | dict) and not value)
+
+
+def _describe_default(value: typing.Any) -> str:
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in typing.cast("list[object]", value))
+    return str(value)
 
 
 def clean_annotation(annotation: TypeForm[typing.Any]) -> TypeForm[typing.Any]:
@@ -44,18 +49,24 @@ def clean_annotation(annotation: TypeForm[typing.Any]) -> TypeForm[typing.Any]:
 
 
 def to_sveltia(field: settings_module.Field) -> dict[str, typing.Any]:
+    # Deliberately no `default` key: Sveltia only applies it when creating an
+    # entry, and the settings file always exists, so it would never show. Worse,
+    # on a new entry it would write the value into the file and freeze it, when
+    # leaving it out lets the settings model supply it at build time. The hint is
+    # the only part that renders either way, so that is where the fallback goes.
     serialized_default = field.serialized_default
-    result: dict[str, typing.Any] = {
+    hint = field.description
+    if not _is_empty_default(serialized_default):
+        hint = f"{hint} Defaults to: {_describe_default(serialized_default)}".strip()
+
+    return {
         "name": field.name,
         "label": field.name.replace("_", " ").title(),
         "required": field.required,
-        "hint": field.description,
+        "hint": hint,
         **sveltia_type_attributes(field=field),
         **field.override.kwargs,
     }
-    if not _is_empty_default(serialized_default):
-        result["default"] = serialized_default
-    return result
 
 
 def _annotation_to_sveltia(
