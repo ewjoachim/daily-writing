@@ -7,6 +7,7 @@ on:
       - main
     tags:
       - "*"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -76,16 +77,21 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: true
+          # The action passes its own token to git, so nothing needs persisting
+          persist-credentials: false
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: coverage-*
           merge-multiple: true
 
+      - name: Set up UV
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: false
+
       - name: Prepare merged coverage data
-        run: |
-          pipx run coverage combine
+        run: uvx coverage combine
 
       - name: Display coverage
         uses: ewjoachim/python-coverage-comment-action@5d8df5979747514c914e1c5a12335a7cf9a2745f # v4.1
@@ -99,25 +105,90 @@ jobs:
           path: python-coverage-comment-action.txt
 
       # - name: Enforce coverage >= 100%
-      #   run: pipx run coverage report --fail-under=100
+      #   run: uvx coverage report --fail-under=100
+
+  tag:
+    name: Determine release tag
+    # Skipped on any other event, which skips `publish` along with it
+    if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs:
+      - tests
+      - lint
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Compute tag
+        id: tag
+        shell: python
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          import datetime
+          import json
+          import os
+          import re
+          import subprocess
+
+          if os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch":
+              now = datetime.datetime.now(datetime.UTC)
+              prefix = f"{now.year}.{now.month}"
+              repo = os.environ["GITHUB_REPOSITORY"]
+              # matching-refs does a prefix match, so this returns only this month's tags
+              refs = json.loads(
+                  subprocess.run(
+                      ["gh", "api", f"repos/{repo}/git/matching-refs/tags/{prefix}."],
+                      capture_output=True,
+                      text=True,
+                      check=True,
+                  ).stdout
+              )
+              tags = [ref["ref"].removeprefix("refs/tags/") for ref in refs]
+              patches = [
+                  int(match[1])
+                  for tag in tags
+                  if (match := re.fullmatch(rf"{re.escape(prefix)}\.(\d+)", tag))
+              ]
+              tag = f"{prefix}.{max(patches, default=0) + 1}"
+          else:
+              tag = os.environ["GITHUB_REF_NAME"]
+
+          print(f"Tag: {tag}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"tag={tag}\n")
+
+      - name: Create release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: gh release create "${TAG}" --target "${GITHUB_SHA}" --generate-notes
 
   publish:
     name: Publish package to PyPI
-    if: github.event_name == 'push' && github.ref_type == 'tag'
     runs-on: ubuntu-latest
     environment: release
     permissions:
       id-token: write
+    # tag itself needs tests + lint, so those gate this transitively
     needs:
-      - tests
-      - lint
+      - tag
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # uv-dynamic-versioning derives the version from the checked-out tag
+          ref: ${{ needs.tag.outputs.tag }}
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: false
 
       - name: Build wheel & sdist
-        run: pipx run uv build
+        run: uv build
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
