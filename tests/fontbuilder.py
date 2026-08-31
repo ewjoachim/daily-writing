@@ -45,7 +45,7 @@ def build_variable_font(letters: str = _LETTERS) -> bytes:
         }
     )
 
-    fb.setupHorizontalMetrics({name: (600, 100) for name in glyph_order})
+    fb.setupHorizontalMetrics(dict.fromkeys(glyph_order, (600, 100)))
     fb.setupHorizontalHeader(ascent=800, descent=-200)
     fb.setupNameTable({"familyName": "Test Variable", "styleName": "Regular"})
     fb.setupOS2(sTypoAscender=800, sTypoDescender=-200, usWeightClass=400)
