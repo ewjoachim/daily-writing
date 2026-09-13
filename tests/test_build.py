@@ -51,12 +51,16 @@ def test_build__includes_cms(
     write_md("2024/10/01-alpha.md", "# 01 - Alpha\n\nBody.\n")
     (tmp_path / "static").mkdir()
     (tmp_path / "_cache").mkdir()
-    httpx_mock.add_response(
-        url="https://unpkg.com/@sveltia/cms@latest/dist/sveltia-cms.js",
-        content=b"// sveltia",
-    )
     settings = dw_settings(  # include_cms defaults to True
         title_ttf_font=[variable_font], body_ttf_font=[variable_font]
+    )
+    httpx_mock.add_response(
+        url=f"https://unpkg.com/@sveltia/cms@{settings.sveltia_version}/dist/sveltia-cms.js",
+        content=b"// sveltia",
+    )
+    httpx_mock.add_response(
+        url=f"https://unpkg.com/@sveltia/cms@{settings.sveltia_version}/schema/sveltia-cms.json",
+        json={"type": "object"},
     )
 
     build.build(settings=settings)

@@ -70,7 +70,11 @@ def to_sveltia(field: settings_module.Field) -> dict[str, typing.Any]:
         "required": field.required,
         "hint": hint,
         **sveltia_type_attributes(field=field),
-        **field.override.kwargs,
+        # `field` is merged into the computed item definition rather than
+        # replacing it, so it is handled there and must not land here too.
+        **{
+            key: value for key, value in field.override.kwargs.items() if key != "field"
+        },
     }
 
 
@@ -90,9 +94,15 @@ def _annotation_to_sveltia(
         if fields is not None:
             result["fields"] = [to_sveltia(f) for f in fields]
         else:
-            result["field"] = _annotation_to_sveltia(
-                args[0], override=settings_module.CMSFieldOverride()
-            ) | override.kwargs.pop("field", {})
+            # Sveltia requires a name on the item field even though a single-field
+            # list stores plain values, so `value` is what a `summary` template
+            # refers to unless the setting overrides the name.
+            result["field"] = {
+                "name": "value",
+                **_annotation_to_sveltia(
+                    args[0], override=settings_module.CMSFieldOverride()
+                ),
+            } | override.kwargs.get("field", {})
 
         return result
 
@@ -107,7 +117,7 @@ def _annotation_to_sveltia(
         if issubclass(annotation, enum.Enum):
             return {
                 "widget": "select",
-                "option": [{"label": e.name, "value": e.value} for e in annotation],
+                "options": [{"label": e.name, "value": e.value} for e in annotation],
             }
         if issubclass(annotation, (int, float)):
             return {"widget": "number"}
@@ -174,7 +184,7 @@ def get_cms_script(sveltia_version: str, cache_dir: pathlib.Path) -> bytes:
     logger.debug(f"Downloading Sveltia @ {sveltia_version} from {cms_script_url}")
     response = httpx.get(cms_script_url, follow_redirects=True)
     response.raise_for_status()
-    final_version = response.url.path.split("@", 1)[-1].split("/", 1)[0]
+    final_version = response.url.path.split("@")[-1].split("/", 1)[0]
     logger.info(f"Using Sveltia CMS version {final_version} from {response.url}")
     result = response.content
     cache_file.write_bytes(result)

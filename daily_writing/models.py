@@ -128,7 +128,8 @@ class BaseFrontMatter(pydantic.BaseModel):
             collapsed=True,
             summary="{{fields.alias}}",
             field={
-                "label": "Alias (url path that should redirect to the main url, e.g. previous/path/to/writing.html)"
+                "name": "alias",
+                "label": "Alias (url path that should redirect to the main url, e.g. previous/path/to/writing.html)",
             },
         ),
     ] = []
