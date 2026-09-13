@@ -476,7 +476,8 @@ class Settings(
             description="Version of Sveltia to pull or 'latest' for the latest one (download is cached unless latest is used)"
         ),
         CMSFieldOverride(exclude=True),
-    ] = "latest"
+        # renovate: datasource=npm depName=@sveltia/cms
+    ] = "0.211.2"
 
     # Dirs
     source_dir: Annotated[

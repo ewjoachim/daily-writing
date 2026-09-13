@@ -6,6 +6,15 @@
     enabled: true,
     automerge: true,
   },
+  customManagers: [
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^daily_writing/settings\\.py$/"],
+      matchStrings: [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\] = \"(?<currentValue>[^\"]+)\"",
+      ],
+    },
+  ],
   packageRules: [
     {
       groupName: "all dependencies",
