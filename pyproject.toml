@@ -19,6 +19,7 @@ dependencies = [
     # HTML:
     "htpy>=25.10.0",
     # In&out
+    "jsonschema>=4.25.1",
     "pydantic>=2.12.4",
     "pydantic-extra-types[pycountry]>=2.10.6",
     "pydantic-settings>=2.12.0",
