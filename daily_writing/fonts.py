@@ -103,13 +103,16 @@ def build_google_font(
     css: str,
     fetch: Callable[[str], bytes],
     static_path: pathlib.Path,
+    font_url: Callable[[str | pathlib.Path], str],
 ) -> tuple[list[artifacts.BytesArtifact], str, list[io.BytesIO | pathlib.Path]]:
     """Turn css2-style CSS into self-hosted font artifacts.
 
-    ``fetch`` maps a font URL — gstatic on a fresh build, an already-local
-    ``/static/…`` path on a cache hit — to its bytes. Google has already subsetted
-    per script and emitted a matching ``unicode-range`` for every face, so we keep
-    its CSS verbatim and only repoint the URLs at our own static dir. Returns the
+    ``fetch`` maps a font URL — gstatic on a fresh build, an already-local one on a
+    cache hit — to its bytes. Google has already subsetted per script and emitted a
+    matching ``unicode-range`` for every face, so we keep its CSS verbatim and only
+    repoint the URLs at our own static dir. ``static_path`` is where a face is
+    written in the build; ``font_url`` is how the browser asks for it, which is not
+    the same string when the site is served below the domain root. Returns the
     artifacts, the localized CSS, and one face per script for the social preview —
     each weight of a script shares glyph coverage, so one face per script is enough.
     """
@@ -140,7 +143,7 @@ def build_google_font(
             # renders instead of tofu. Fall back to the filename if css2 ever
             # omits the subset comment, so distinct faces aren't collapsed.
             coverage_faces.setdefault(subset or font_path.name, io.BytesIO(data))
-            css = css.replace(token.value, f"/{font_path}")
+            css = css.replace(token.value, font_url(font_path.name))
 
     if not coverage_faces:
         raise ValueError("css2 returned no font faces.")
@@ -159,12 +162,15 @@ def download_google_font(
     cached_css = cache_dir / settings.fonts_css_filename
 
     if cached_css.exists():
-        # The cached CSS already points at /static/…; resolve each local URL back
-        # to its cached bytes and let build_google_font rebuild the artifacts.
+        # The cached CSS already points at our own static dir; resolve each local
+        # URL back to its cached bytes, by file name so that a cache written for
+        # another site URL still resolves, and let build_google_font rebuild both
+        # the artifacts and the URLs.
         font_artifacts, css, coverage_faces = build_google_font(
             css=cached_css.read_text(),
             fetch=lambda url: (cache_dir / url.rsplit("/", 1)[-1]).read_bytes(),
             static_path=static_path,
+            font_url=settings.static_url,
         )
     else:
         with httpx.Client(headers={"User-Agent": BROWSER_UA}) as client:
@@ -180,7 +186,10 @@ def download_google_font(
             )
             stylesheet.raise_for_status()
             font_artifacts, css, coverage_faces = build_google_font(
-                css=stylesheet.text, fetch=fetch, static_path=static_path
+                css=stylesheet.text,
+                fetch=fetch,
+                static_path=static_path,
+                font_url=settings.static_url,
             )
 
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -371,7 +380,7 @@ def get_font_family(
   font-style: {style or "normal"};
   font-weight: {weight};
   font-display: swap;
-  src: url('/{font_path}') format('{font_format}');
+  src: url('{settings.static_url(path.name)}') format('{font_format}');
 }}""")
 
     if len(different_names := set(names)) > 1:

@@ -6,6 +6,7 @@ import sys
 import fontbuilder
 import fontTools.ttLib
 import pytest
+import yarl
 
 from daily_writing import artifacts, fonts
 
@@ -89,6 +90,39 @@ def test_get_font_family__downloads_then_reads_cache(dw_settings, httpx_mock):
     assert cached.coverage_faces[0].getvalue() == b"woff2-bytes"
 
 
+def test_get_font_family__from_files_uses_site_base_path(dw_settings, variable_font):
+    settings = dw_settings(site_url=yarl.URL("https://foo.bar/below/"))
+
+    family = fonts.get_font_family(
+        settings=settings, font_input=[variable_font], fallback="serif"
+    )
+
+    assert "url('/below/static/TestVariable.ttf')" in family.css_parts[0]
+    assert str(family.artifacts[0].path) == "static/TestVariable.ttf"
+
+
+def test_get_font_family__google_uses_site_base_path(dw_settings, httpx_mock):
+    settings = dw_settings(site_url=yarl.URL("https://foo.bar/below/"))
+    httpx_mock.add_response(
+        url=re.compile(r"https://fonts\.googleapis\.com/css2.*"), text=CSS2_STYLESHEET
+    )
+    httpx_mock.add_response(
+        url="https://fonts.gstatic.com/s/testfont/v1/aaaa.woff2", content=b"woff2-bytes"
+    )
+
+    downloaded = fonts.get_font_family(
+        settings=settings, font_input="Test Font", fallback="serif"
+    )
+    assert "url(/below/static/aaaa.woff2)" in downloaded.css_parts[0]
+    assert str(downloaded.artifacts[0].path) == "static/aaaa.woff2"
+
+    # The cache stores the localized CSS, so the prefix has to survive the reread.
+    cached = fonts.get_font_family(
+        settings=settings, font_input="Test Font", fallback="serif"
+    )
+    assert "url(/below/static/aaaa.woff2)" in cached.css_parts[0]
+
+
 def test_build_google_font__keeps_one_face_per_subset():
     css = (
         "/* latin */\n"
@@ -100,7 +134,10 @@ def test_build_google_font__keeps_one_face_per_subset():
     )
 
     font_artifacts, localized_css, faces = fonts.build_google_font(
-        css=css, fetch=lambda url: url.encode(), static_path=pathlib.Path("static")
+        css=css,
+        fetch=lambda url: url.encode(),
+        static_path=pathlib.Path("static"),
+        font_url=lambda name: f"/static/{name}",
     )
 
     # Both weights of latin collapse to one face; cyrillic adds the second, so the
