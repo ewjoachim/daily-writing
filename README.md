@@ -12,15 +12,15 @@ that can be deployed.
 <tr>
 <td width="33%">
 
-![The homepage shows its text and links to the months](doc/homepage-example.png)
+![The homepage shows its text and links to the months](https://raw.githubusercontent.com/ewjoachim/daily-writing/main/doc/homepage-example.png)
 
 <td width="33%">
 
-![The navigation menu with a monthly calendar of all writings, each day colored and labelled with its prompt](doc/menu-example.png)
+![The navigation menu with a monthly calendar of all writings, each day colored and labelled with its prompt](https://raw.githubusercontent.com/ewjoachim/daily-writing/main/doc/menu-example.png)
 
 <td width="33%">
 
-![A single writing's page, with its title, prompt and text](doc/writing-example.png)
+![A single writing's page, with its title, prompt and text](https://raw.githubusercontent.com/ewjoachim/daily-writing/main/doc/writing-example.png)
 
 <tr>
 <td align="center">
