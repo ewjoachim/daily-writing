@@ -137,6 +137,10 @@ class BaseFrontMatter(pydantic.BaseModel):
         datetime.date | None,
         pydantic.Field(description="Date of first prompt (mainly used for CMS)"),
     ] = None
+    is_draft: Annotated[
+        bool,
+        pydantic.Field(description="If set, the writing is not published."),
+    ] = False
 
 
 class SinglePromptFrontMatter(BaseFrontMatter, PartialPrompt):
@@ -496,6 +500,10 @@ class Writing:
     @functools.cached_property
     def markdown(self) -> str:
         return self.markdown_file.markdown
+
+    @property
+    def is_draft(self) -> bool:
+        return self.markdown_file.base_metadata.is_draft
 
     @functools.cached_property
     def first_date(self) -> datetime.date:
