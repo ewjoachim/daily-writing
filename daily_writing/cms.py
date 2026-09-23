@@ -350,8 +350,18 @@ def get_writings_collection() -> dict[str, typing.Any]:
         "folder": ".",
         "create": True,
         "sortable_fields": {
-            "fields": ["date"],
+            "fields": ["date", "full_title"],
             "default": {"field": "date", "direction": "descending"},
+        },
+        "view_filters": {
+            "filters": [
+                {
+                    "name": "drafts",
+                    "label": "Drafts",
+                    "field": "is_draft",
+                    "pattern": True,
+                },
+            ],
         },
         "view_groups": {
             "groups": [
@@ -366,7 +376,7 @@ def get_writings_collection() -> dict[str, typing.Any]:
         },
         "path": "{{year}}/{{month}}/{{day}}-{{slug}}",
         "identifier_field": "full_title",
-        "summary": "{{date | date('YYYY-MM')}}-{{full_title}}",
+        "summary": "{{is_draft | ternary('[draft] ', '')}}{{date | date('YYYY-MM')}}-{{full_title}}",
         "icon": "book_3",
         "fields": [
             {"name": "body", "widget": "markdown"},
