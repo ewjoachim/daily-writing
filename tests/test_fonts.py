@@ -151,6 +151,44 @@ def test_build_google_font__keeps_one_face_per_subset():
     assert "https://" not in localized_css
 
 
+def test_build_google_font__preview_skips_italic_faces():
+    # css2 lists italic faces before upright ones.
+    css = (
+        "/* latin */\n"
+        "@font-face { font-style: italic; src: url(https://f/latin-i.woff2); }\n"
+        "/* latin */\n"
+        "@font-face { font-style: normal; src: url(https://f/latin.woff2); }\n"
+    )
+
+    font_artifacts, _, faces = fonts.build_google_font(
+        css=css,
+        fetch=lambda url: url.encode(),
+        static_path=pathlib.Path("static"),
+        font_url=lambda name: f"/static/{name}",
+    )
+
+    assert [face.getvalue() for face in faces] == [b"https://f/latin.woff2"]
+    assert len(font_artifacts) == 2
+
+
+def test_get_font_family__requests_italics(dw_settings, httpx_mock):
+    httpx_mock.add_response(
+        url=re.compile(r"https://fonts\.googleapis\.com/css2.*"), text=CSS2_STYLESHEET
+    )
+    httpx_mock.add_response(
+        url="https://fonts.gstatic.com/s/testfont/v1/aaaa.woff2", content=b"woff2-bytes"
+    )
+
+    fonts.get_font_family(
+        settings=dw_settings(), font_input="Test Font", fallback="serif"
+    )
+
+    css_request = httpx_mock.get_requests()[0]
+    assert css_request.url.params["family"] == (
+        "Test Font:ital,wght@0,400;0,700;1,400;1,700"
+    )
+
+
 def test_build_preview_font__merges_disjoint_subsets():
     latin = fontbuilder.build_variable_font("AB")
     cyrillic = fontbuilder.build_variable_font("ДЕ")

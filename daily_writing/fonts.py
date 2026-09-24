@@ -94,9 +94,9 @@ BROWSER_UA = (
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 
-# The generated stylesheet styles only body text (normal) and headings (bold),
-# so those are the only two weights worth fetching.
-FONT_WEIGHTS = "400;700"
+# Body text (normal), headings (bold), each upright and italic. css2 silently
+# drops the combinations a family doesn't have.
+FONT_VARIANTS = "ital,wght@0,400;0,700;1,400;1,700"
 
 
 def build_google_font(
@@ -113,8 +113,8 @@ def build_google_font(
     repoint the URLs at our own static dir. ``static_path`` is where a face is
     written in the build; ``font_url`` is how the browser asks for it, which is not
     the same string when the site is served below the domain root. Returns the
-    artifacts, the localized CSS, and one face per script for the social preview —
-    each weight of a script shares glyph coverage, so one face per script is enough.
+    artifacts, the localized CSS, and one upright face per script for the social
+    preview — each face of a script shares glyph coverage, so one is enough.
     """
     font_artifacts: list[artifacts.BytesArtifact] = []
     coverage_faces: dict[str, io.BytesIO | pathlib.Path] = {}
@@ -130,6 +130,15 @@ def build_google_font(
             continue
         if node.lower_at_keyword != "font-face":
             continue
+        font_style = next(
+            (
+                tinycss2.serialize(declaration.value).strip()
+                for declaration in tinycss2.parse_blocks_contents(node.content or [])
+                if isinstance(declaration, tinycss2.ast.Declaration)
+                and declaration.lower_name == "font-style"
+            ),
+            "normal",
+        )
         for token in node.content or ():
             # The url() src; skips format('woff2'), unicode-range, whitespace, etc.
             if not isinstance(token, tinycss2.ast.URLToken):
@@ -139,10 +148,11 @@ def build_google_font(
             font_artifacts.append(
                 artifacts.BytesArtifact(contents=io.BytesIO(data), path=font_path)
             )
-            # Keep one face per script; the preview merges them so any script
-            # renders instead of tofu. Fall back to the filename if css2 ever
-            # omits the subset comment, so distinct faces aren't collapsed.
-            coverage_faces.setdefault(subset or font_path.name, io.BytesIO(data))
+            # Keep one upright face per script; the preview merges them so any
+            # script renders instead of tofu. Fall back to the filename if css2
+            # ever omits the subset comment, so distinct faces aren't collapsed.
+            if font_style == "normal":
+                coverage_faces.setdefault(subset or font_path.name, io.BytesIO(data))
             css = css.replace(token.value, font_url(font_path.name))
 
     if not coverage_faces:
@@ -158,7 +168,7 @@ def download_google_font(
 ) -> FontFamily:
     """Fetch a Google font as self-hosted woff2 through the css2 API."""
     static_path = settings.build_static_dir
-    cache_dir = settings.cache_dir / name
+    cache_dir = settings.cache_dir / name / FONT_VARIANTS
     cached_css = cache_dir / settings.fonts_css_filename
 
     if cached_css.exists():
@@ -182,7 +192,7 @@ def download_google_font(
 
             stylesheet = client.get(
                 CSS2_ENDPOINT,
-                params={"family": f"{name}:wght@{FONT_WEIGHTS}", "display": "swap"},
+                params={"family": f"{name}:{FONT_VARIANTS}", "display": "swap"},
             )
             stylesheet.raise_for_status()
             font_artifacts, css, coverage_faces = build_google_font(
