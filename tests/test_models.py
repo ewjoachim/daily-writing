@@ -63,6 +63,37 @@ def test_extract_markdown_title_prompts__multiple_days():
     assert [p.title for p in prompts] == ["Foo", "Bar"]
 
 
+@pytest.mark.parametrize(
+    ("markdown_title", "expected"),
+    [
+        ("TEST", [(None, "TEST")]),
+        ("Hello, world", [(None, "Hello, world")]),
+        ("12 -", [(12, None)]),
+        ("12", [(12, None)]),
+        ("12 - ", [(12, None)]),
+        ("12&13 -", [(12, None), (13, None)]),
+        ("12 monkeys", [(None, "12 monkeys")]),
+        ("5 & 6 - Foo", [(5, "Foo"), (6, None)]),
+    ],
+)
+def test_extract_markdown_title_prompts__partial(markdown_title, expected):
+    prompts = list(models.extract_markdown_title_prompts(2024, 10, markdown_title))
+    assert [(p.date and p.date.day, p.title) for p in prompts] == expected
+
+
+def test_writing_from_path__title_without_day_number(write_md):
+    path = write_md("22-test.md", "# TEST\n\nBody.\n")
+    writing = models.Writing.from_path(path=path, month=10, year=2024)
+    assert writing.dates == [datetime.date(2024, 10, 22)]
+    assert writing.prompts[0].title == "TEST"
+
+
+def test_writing_from_path__day_number_without_title(write_md):
+    path = write_md("12-foo.md", "# 12 -\n\nBody.\n")
+    writing = models.Writing.from_path(path=path, month=10, year=2024)
+    assert writing.dates == [datetime.date(2024, 10, 12)]
+
+
 def test_markdown_file(write_md):
     path = write_md("w.md", "# My Title\n\nHello world content.\n")
     md = models.MarkdownFile.from_md_path(md_path=path)

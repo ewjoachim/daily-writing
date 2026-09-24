@@ -289,25 +289,25 @@ def extract_markdown_title_prompts(
     if not markdown_title:
         return
 
-    match = re.match(
-        pattern=r"(?:(?P<day_numbers>\d+( *& *\d+)*)( *- *))?(?P<titles>.+)$",
-        string=markdown_title,
+    match = re.fullmatch(
+        pattern=r"(?:(?P<day_numbers>\d+(?: *& *\d+)*) *(?:-|$))? *(?P<titles>.*)",
+        string=markdown_title.strip(),
     )
-    if not match:
-        yield PartialPrompt(date=None, title=markdown_title)
-        return
+    assert match
+    day_numbers, raw_titles = match.group("day_numbers", "titles")
 
-    groups = match.groupdict()
     dates = [
-        datetime.date(year=year, month=month, day=int(e.strip()))
-        for e in (groups["day_numbers"] or "").split("&")
+        datetime.date(year=year, month=month, day=int(e))
+        for e in (day_numbers or "").split("&")
+        if e.strip()
     ]
-    titles = [e.strip() for e in groups["titles"].split(",")]
-    if len(dates) != len(titles):
-        titles = [groups["titles"].strip()]
+    raw_titles = raw_titles.strip()
+    titles = [e.strip() for e in raw_titles.split(",")] if raw_titles else []
+    if titles and len(dates) != len(titles):
+        titles = [raw_titles]
 
     yield from (
-        PartialPrompt(date=date, title=title)
+        PartialPrompt(date=date, title=title or None)
         for date, title in itertools.zip_longest(dates, titles, fillvalue=None)
     )
 
