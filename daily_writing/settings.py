@@ -550,6 +550,14 @@ class Settings(
         CMSFieldOverride(exclude=True),
     ]
 
+    include_drafts: Annotated[
+        bool,
+        pydantic.Field(
+            description="Include writings marked as draft in the build, to preview them locally."
+        ),
+        CMSFieldOverride(exclude=True),
+    ] = False
+
     @property
     def base_path(self) -> yarl.URL:
         return yarl.URL(self.site_url.path)

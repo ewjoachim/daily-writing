@@ -146,6 +146,13 @@ There are 2 main subcommands:
 - `daily-writing serve` launches a local development server that autobuilds the
   website and auto-reload pages in your browser when changes are detected.
 
+To preview writings before publishing them, pass `--include-drafts` to render
+writings marked as draft, and `--max-date` to render writings dated in the future:
+
+```console
+$ daily-writing --include-drafts --max-date=2099-12-31 serve
+```
+
 ## CI/CD Deployment
 
 Solutions like [GitHub Pages](https://docs.github.com/en/pages), [Cloudflare
