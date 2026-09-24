@@ -56,7 +56,8 @@ def get_artifacts(
     writings = [
         writing
         for writing in models.Writing.get_all_writings(settings=settings)
-        if writing.last_date <= settings.max_date and not writing.is_draft
+        if writing.last_date <= settings.max_date
+        and (settings.include_drafts or not writing.is_draft)
     ]
     yield from index_artifacts(
         settings=settings,

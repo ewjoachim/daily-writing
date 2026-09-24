@@ -1,3 +1,4 @@
+import datetime
 import pathlib
 
 from daily_writing import artifacts, build
@@ -137,3 +138,32 @@ def test_get_redirect_alias_artifact(dw_settings, page_metadata):
 
     assert artifact.path == pathlib.Path("old/path.html")
     assert "https://foo.bar/new/" in artifact.contents
+
+
+def test_build__drafts_and_future_writings(
+    dw_settings, write_md, variable_font, tmp_path
+):
+    write_md("2024/10/01-alpha.md", "---\nis_draft: true\n---\n# 01 - Alpha\n\nBody.\n")
+    write_md("2024/10/02-beta.md", "# 02 - Beta\n\nBody.\n")
+    (tmp_path / "static").mkdir()
+    fonts = {"title_ttf_font": [variable_font], "body_ttf_font": [variable_font]}
+    build_dir = tmp_path / "_build"
+
+    build.build(
+        settings=dw_settings(
+            **fonts, include_cms=False, max_date=datetime.date(2024, 10, 1)
+        )
+    )
+    assert not (build_dir / "2024/10/1-alpha").exists()
+    assert not (build_dir / "2024/10/2-beta").exists()
+
+    build.build(
+        settings=dw_settings(
+            **fonts,
+            include_cms=False,
+            max_date=datetime.date(2024, 10, 2),
+            include_drafts=True,
+        )
+    )
+    assert (build_dir / "2024/10/1-alpha/index.html").is_file()
+    assert (build_dir / "2024/10/2-beta/index.html").is_file()
