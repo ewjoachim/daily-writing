@@ -11,7 +11,7 @@ class BaseArtifact(Protocol):
 
 
 def ensure_relative(path: pathlib.Path):
-    if path.is_absolute():
+    if path.anchor:
         raise ValueError("Only relative paths are accepted")
 
     return path
