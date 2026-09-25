@@ -155,6 +155,15 @@ def test_settings_url_path__base_path(dw_settings):
     assert settings.url_path("/admin/script.js") == "/my-project/admin/script.js"
 
 
+def test_settings_url_path__windows_path(dw_settings):
+    settings = dw_settings()
+
+    assert (
+        settings.url_path(pathlib.PureWindowsPath("static\\a.woff2"))
+        == "/static/a.woff2"
+    )
+
+
 def test_settings_source_static_url(dw_settings, tmp_path):
     """A source path is rewritten to where the build serves it from, keeping any
     subdirectory."""

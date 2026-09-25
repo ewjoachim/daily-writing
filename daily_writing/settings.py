@@ -562,13 +562,15 @@ class Settings(
     def base_path(self) -> yarl.URL:
         return yarl.URL(self.site_url.path)
 
-    def url_path(self, path: str | pathlib.Path) -> str:
+    def url_path(self, path: str | pathlib.PurePath) -> str:
         """Absolute URL path for ``path``, below the site's base path.
 
         ``site_url`` may carry a path component if the site is not served at the root of
         the domain, so links built from the domain root alone would 404 there.
         """
-        return str(self.base_path / str(path).lstrip("/"))
+        if isinstance(path, pathlib.PurePath):
+            path = path.as_posix()
+        return str(self.base_path / path.lstrip("/"))
 
     def static_url(self, filename: str | pathlib.Path) -> str:
         return self.url_path(self.build_static_dir / filename)
