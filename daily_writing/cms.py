@@ -196,7 +196,7 @@ def get_cms_schema(
 ) -> dict[str, typing.Any] | None:
     cache_file = cache_dir / f"sveltia-schema-{sveltia_version}.json"
     if sveltia_version != "latest" and cache_file.exists():
-        return json.loads(cache_file.read_text())
+        return json.loads(cache_file.read_text(encoding="utf-8"))
 
     schema_url = (
         f"https://unpkg.com/@sveltia/cms@{sveltia_version}/schema/sveltia-cms.json"
@@ -208,7 +208,7 @@ def get_cms_schema(
         logger.warning(f"No CMS config schema at {schema_url}, skipping validation")
         return None
     response.raise_for_status()
-    cache_file.write_text(response.text)
+    cache_file.write_text(response.text, encoding="utf-8")
     return response.json()
 
 

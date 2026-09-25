@@ -13,7 +13,7 @@ from daily_writing import settings as settings_module
 @pytest.fixture
 def dw_settings(tmp_path: pathlib.Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "README.md").write_text("# Test\n")
+    (tmp_path / "README.md").write_text("# Test\n", encoding="utf-8")
 
     def f(**kwargs: Any) -> settings_module.Settings:
         defaults: dict[str, Any] = {
@@ -34,7 +34,7 @@ def write_md(tmp_path: pathlib.Path):
     def f(name: str, content: str) -> pathlib.Path:
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
+        path.write_text(content, encoding="utf-8")
         return path
 
     return f

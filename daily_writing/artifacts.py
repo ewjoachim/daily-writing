@@ -24,7 +24,7 @@ class TextArtifact:
 
     def write(self, destination: pathlib.Path):
         (destination / self.path).parent.mkdir(exist_ok=True, parents=True)
-        (destination / self.path).write_text(self.contents)
+        (destination / self.path).write_text(self.contents, encoding="utf-8")
 
 
 @pdataclasses.dataclass(kw_only=True)

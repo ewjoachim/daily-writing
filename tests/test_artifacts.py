@@ -11,7 +11,7 @@ def test_text_artifact(tmp_path: pathlib.Path):
         destination=tmp_path
     )
 
-    assert (tmp_path / "foo").read_text() == "bar"
+    assert (tmp_path / "foo").read_text(encoding="utf-8") == "bar"
 
 
 def test_html_artifact(tmp_path: pathlib.Path):
@@ -19,7 +19,7 @@ def test_html_artifact(tmp_path: pathlib.Path):
         destination=tmp_path
     )
 
-    assert (tmp_path / "foo").read_text() == "bar"
+    assert (tmp_path / "foo").read_text(encoding="utf-8") == "bar"
 
 
 def test_bytes_artifact(tmp_path: pathlib.Path):
@@ -32,13 +32,13 @@ def test_bytes_artifact(tmp_path: pathlib.Path):
 
 def test_file_artifact(tmp_path: pathlib.Path):
     (tmp_path / "foo").mkdir()
-    (tmp_path / "foo" / "bar").write_text("baz")
+    (tmp_path / "foo" / "bar").write_text("baz", encoding="utf-8")
     artifacts.FileArtifact(
         path=pathlib.Path("qux/bar"),
         source=tmp_path / "foo" / "bar",
     ).write(destination=tmp_path / "frob")
 
-    assert (tmp_path / "frob/qux/bar").read_text() == "baz"
+    assert (tmp_path / "frob/qux/bar").read_text(encoding="utf-8") == "baz"
 
 
 def test_ensure_relative__ok():

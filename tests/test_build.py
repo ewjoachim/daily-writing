@@ -8,7 +8,7 @@ def test_build__writes_full_site(dw_settings, write_md, variable_font, tmp_path)
     write_md("2024/10/01-alpha.md", "# 01 - Alpha\n\nAlpha body.\n")
     write_md("2024/10/03-04-beta-gamma.md", "Beta gamma body.\n")
     (tmp_path / "static").mkdir()
-    (tmp_path / "static" / "extra.txt").write_text("x")
+    (tmp_path / "static" / "extra.txt").write_text("x", encoding="utf-8")
     settings = dw_settings(
         title_ttf_font=[variable_font],
         body_ttf_font=[variable_font],
@@ -36,7 +36,7 @@ def test_build__empties_existing_build_dir(
     build_dir = tmp_path / "_build"
     build_dir.mkdir()
     stale = build_dir / "stale.html"
-    stale.write_text("old")
+    stale.write_text("old", encoding="utf-8")
     settings = dw_settings(
         title_ttf_font=[variable_font], body_ttf_font=[variable_font], include_cms=False
     )
@@ -72,7 +72,7 @@ def test_build__includes_cms(
 
 def test_static_artifacts(dw_settings, tmp_path):
     (tmp_path / "static").mkdir()
-    (tmp_path / "static" / "foo.txt").write_text("bar")
+    (tmp_path / "static" / "foo.txt").write_text("bar", encoding="utf-8")
     settings = dw_settings()
 
     result = list(build.static_artifacts(settings=settings))
@@ -87,7 +87,7 @@ def test_static_artifacts(dw_settings, tmp_path):
 def test_static_artifacts__build_static_dir(dw_settings, tmp_path):
     """Sources are read from source_static_dir but written to build_static_dir."""
     (tmp_path / "sources").mkdir()
-    (tmp_path / "sources" / "foo.txt").write_text("bar")
+    (tmp_path / "sources" / "foo.txt").write_text("bar", encoding="utf-8")
     settings = dw_settings(source_static_dir="sources", build_static_dir="assets")
 
     paths = {str(a.path) for a in build.static_artifacts(settings=settings)}
@@ -101,7 +101,7 @@ def test_static_artifacts__nested(dw_settings, tmp_path):
     project file shadowing a framework one simply overwrites it."""
     (tmp_path / "static" / "img").mkdir(parents=True)
     (tmp_path / "static" / "img" / "logo.png").write_bytes(b"png")
-    (tmp_path / "static" / "style.css").write_text("/* mine */")
+    (tmp_path / "static" / "style.css").write_text("/* mine */", encoding="utf-8")
     settings = dw_settings()
 
     result = list(build.static_artifacts(settings=settings))

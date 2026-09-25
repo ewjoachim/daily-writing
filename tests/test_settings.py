@@ -19,7 +19,7 @@ def pyproject(tmp_path, monkeypatch):
 
     def f(content: str | None = None) -> pathlib.Path:
         if content is not None:
-            path.write_text(content)
+            path.write_text(content, encoding="utf-8")
         settings_module._pyproject_project.cache_clear()
         return path
 
@@ -168,7 +168,9 @@ def test_settings_source_static_url(dw_settings, tmp_path):
     """A source path is rewritten to where the build serves it from, keeping any
     subdirectory."""
     (tmp_path / "sources" / "css").mkdir(parents=True)
-    (tmp_path / "sources" / "css" / "extra.css").write_text("/* extra */")
+    (tmp_path / "sources" / "css" / "extra.css").write_text(
+        "/* extra */", encoding="utf-8"
+    )
     settings = dw_settings(source_static_dir="sources", build_static_dir="assets")
 
     result = settings.source_static_url(pathlib.Path("sources/css/extra.css"))
@@ -177,7 +179,7 @@ def test_settings_source_static_url(dw_settings, tmp_path):
 
 
 def test_settings_extra_css__outside_source_static_dir(dw_settings, tmp_path):
-    (tmp_path / "elsewhere.css").write_text("/* nope */")
+    (tmp_path / "elsewhere.css").write_text("/* nope */", encoding="utf-8")
 
     with pytest.raises(pydantic.ValidationError, match="must be under"):
         dw_settings(extra_css=["elsewhere.css"])

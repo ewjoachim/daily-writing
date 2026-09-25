@@ -103,6 +103,14 @@ def test_markdown_file(write_md):
     assert "<h1>My Title</h1>" in md.get_html(title_fallback="fallback")
 
 
+def test_markdown_file__utf8(write_md):
+    path = write_md("w.md", "# Été à la mer\n\nCœur 🌊\n")
+    md = models.MarkdownFile.from_md_path(md_path=path)
+
+    assert md.text_title == "Été à la mer"
+    assert "Cœur 🌊" in md.text_content
+
+
 def test_markdown_file__title_fallback(write_md):
     path = write_md("w.md", "No heading here.\n")
     md = models.MarkdownFile.from_md_path(md_path=path)

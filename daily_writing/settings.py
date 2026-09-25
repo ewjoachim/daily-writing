@@ -217,7 +217,7 @@ class DayOfWeek(enum.StrEnum):
 def _pyproject_project() -> dict[str, Any]:
     """Read and cache the [project] section from pyproject.toml."""
     try:
-        data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+        data = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
         return data.get("project", {})
     except FileNotFoundError, tomllib.TOMLDecodeError:
         return {}
