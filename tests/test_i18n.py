@@ -1,4 +1,5 @@
 import datetime
+import locale
 
 import babel
 import pytest
@@ -20,6 +21,21 @@ def test_locale_from_string__invalid():
 
 def test_locale_default():
     assert isinstance(i18n.Locale.default().locale, babel.Locale)
+
+
+@pytest.mark.parametrize(
+    "system, expected",
+    [
+        (("fr_FR", "cp1252"), "fr_FR"),
+        (("English_United States", "1252"), "en"),
+        ((None, None), "en"),
+    ],
+)
+def test_locale_default__without_env(monkeypatch, system, expected):
+    monkeypatch.setattr(babel, "default_locale", lambda: None)
+    monkeypatch.setattr(locale, "getlocale", lambda: system)
+
+    assert str(i18n.Locale.default().locale) == expected
 
 
 def test_full_date():

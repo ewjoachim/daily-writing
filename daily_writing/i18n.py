@@ -1,4 +1,5 @@
 import datetime
+import locale as system_locale
 from typing import Self
 
 import babel
@@ -24,7 +25,14 @@ class Locale:
 
     @classmethod
     def default(cls) -> Self:
-        return cls(locale=babel.Locale.default())
+        for identifier in (babel.default_locale(), system_locale.getlocale()[0]):
+            if not identifier:
+                continue
+            try:
+                return cls(locale=babel.Locale.parse(identifier))
+            except ValueError, babel.UnknownLocaleError:
+                continue
+        return cls(locale=babel.Locale("en"))
 
 
 def full_date(dates: list[datetime.date], locale: Locale | None) -> str:
