@@ -19,7 +19,7 @@ def test_get_font_family__from_files(dw_settings, variable_font):
     assert family.name == "Test Variable"
     # The file is served verbatim: one artifact, one @font-face, no subsetting.
     assert len(family.artifacts) == 1
-    assert str(family.artifacts[0].path).endswith("TestVariable.ttf")
+    assert family.artifacts[0].path.as_posix().endswith("TestVariable.ttf")
     assert len(family.css_parts) == 1
     assert "@font-face" in family.css_parts[0]
     assert "format('truetype')" in family.css_parts[0]
@@ -45,7 +45,8 @@ def test_get_all_font_files(dw_settings, variable_font):
 
     assert files.artifacts
     assert any(
-        isinstance(a, artifacts.TextArtifact) and str(a.path).endswith("fonts.css")
+        isinstance(a, artifacts.TextArtifact)
+        and a.path.as_posix().endswith("fonts.css")
         for a in files.artifacts
     )
 
@@ -98,7 +99,7 @@ def test_get_font_family__from_files_uses_site_base_path(dw_settings, variable_f
     )
 
     assert "url('/below/static/TestVariable.ttf')" in family.css_parts[0]
-    assert str(family.artifacts[0].path) == "static/TestVariable.ttf"
+    assert family.artifacts[0].path.as_posix() == "static/TestVariable.ttf"
 
 
 def test_get_font_family__google_uses_site_base_path(dw_settings, httpx_mock):
@@ -114,7 +115,7 @@ def test_get_font_family__google_uses_site_base_path(dw_settings, httpx_mock):
         settings=settings, font_input="Test Font", fallback="serif"
     )
     assert "url(/below/static/aaaa.woff2)" in downloaded.css_parts[0]
-    assert str(downloaded.artifacts[0].path) == "static/aaaa.woff2"
+    assert downloaded.artifacts[0].path.as_posix() == "static/aaaa.woff2"
 
     # The cache stores the localized CSS, so the prefix has to survive the reread.
     cached = fonts.get_font_family(

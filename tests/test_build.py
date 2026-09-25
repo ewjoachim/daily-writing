@@ -76,7 +76,7 @@ def test_static_artifacts(dw_settings, tmp_path):
     settings = dw_settings()
 
     result = list(build.static_artifacts(settings=settings))
-    paths = {str(a.path) for a in result}
+    paths = {a.path.as_posix() for a in result}
 
     assert all(isinstance(a, artifacts.FileArtifact) for a in result)
     # The project static file, plus the framework's own static assets.
@@ -90,7 +90,7 @@ def test_static_artifacts__build_static_dir(dw_settings, tmp_path):
     (tmp_path / "sources" / "foo.txt").write_text("bar", encoding="utf-8")
     settings = dw_settings(source_static_dir="sources", build_static_dir="assets")
 
-    paths = {str(a.path) for a in build.static_artifacts(settings=settings)}
+    paths = {a.path.as_posix() for a in build.static_artifacts(settings=settings)}
 
     assert "assets/foo.txt" in paths
     assert "assets/style.css" in paths
@@ -105,13 +105,15 @@ def test_static_artifacts__nested(dw_settings, tmp_path):
     settings = dw_settings()
 
     result = list(build.static_artifacts(settings=settings))
-    paths = [str(a.path) for a in result]
+    paths = [a.path.as_posix() for a in result]
 
     assert "static/img/logo.png" in paths
     assert all(not a.source.is_dir() for a in result)
     # Framework and project both provide style.css; the project's is written last,
     # so it is the one that survives.
-    style_sources = [a.source for a in result if str(a.path) == "static/style.css"]
+    style_sources = [
+        a.source for a in result if a.path.as_posix() == "static/style.css"
+    ]
     assert len(style_sources) == 2
     # cwd is tmp_path, so the project's source is the relative one.
     assert style_sources[-1] == pathlib.Path("static/style.css")

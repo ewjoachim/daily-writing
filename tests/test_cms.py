@@ -218,7 +218,7 @@ def test_cms_artifacts(dw_settings, httpx_mock, tmp_path):
         json={"type": "object"},
     )
 
-    paths = {str(a.path) for a in cms.cms_artifacts(settings=dw_settings())}
+    paths = {a.path.as_posix() for a in cms.cms_artifacts(settings=dw_settings())}
 
     assert paths == {"admin/script.js", "admin/index.html", "admin/config.json"}
 
