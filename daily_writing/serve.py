@@ -19,6 +19,22 @@ from . import settings as settings_module
 logger = logging.getLogger("daily_writing")
 
 
+class WatchFilter(watchfiles.DefaultFilter):
+    """Watchers report resolved paths (``/private/tmp`` for ``/tmp`` on macOS), which a
+    string prefix match against ``ignore_paths`` would miss."""
+
+    def __init__(self, *, ignored: list[pathlib.Path]):
+        super().__init__()
+        self.ignored: list[pathlib.Path] = [p.resolve() for p in ignored]
+
+    @override
+    def __call__(self, change: watchfiles.Change, path: str) -> bool:
+        resolved = pathlib.Path(path).resolve()
+        if any(resolved.is_relative_to(ignored) for ignored in self.ignored):
+            return False
+        return super().__call__(change, path)
+
+
 def serve(settings: settings_module.CLISettings):
     asyncio.run(serve_async(settings=settings))
 
@@ -94,11 +110,8 @@ async def serve_async(settings: settings_module.CLISettings):
             watchfiles.arun_process(
                 ".",
                 *serve_config.additional_paths,
-                watch_filter=watchfiles.DefaultFilter(
-                    ignore_paths=[
-                        settings.build_dir.absolute(),
-                        settings.cache_dir.absolute(),
-                    ]
+                watch_filter=WatchFilter(
+                    ignored=[settings.build_dir, settings.cache_dir]
                 ),
                 target=functools.partial(
                     build.build, settings=settings, context=context
