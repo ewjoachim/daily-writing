@@ -177,7 +177,7 @@ def download_google_font(
         # another site URL still resolves, and let build_google_font rebuild both
         # the artifacts and the URLs.
         font_artifacts, css, coverage_faces = build_google_font(
-            css=cached_css.read_text(),
+            css=cached_css.read_text(encoding="utf-8"),
             fetch=lambda url: (cache_dir / url.rsplit("/", 1)[-1]).read_bytes(),
             static_path=static_path,
             font_url=settings.static_url,
@@ -203,7 +203,7 @@ def download_google_font(
             )
 
         cache_dir.mkdir(parents=True, exist_ok=True)
-        cached_css.write_text(css)
+        cached_css.write_text(css, encoding="utf-8")
         for artifact in font_artifacts:
             (cache_dir / artifact.path.name).write_bytes(artifact.contents.getvalue())
 

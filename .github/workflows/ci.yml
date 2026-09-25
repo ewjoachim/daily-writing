@@ -11,6 +11,7 @@ on:
 
 env:
   UV_FROZEN: "true"
+  UV_LINK_MODE: copy
 
 permissions:
   contents: read
@@ -41,10 +42,14 @@ jobs:
   tests:
     strategy:
       matrix:
-        python_version: ["3.14"]
+        include:
+          - python_version: "3.14"
+            os: ubuntu-latest
+          - python_version: "3.14"
+            os: windows-latest
 
-    name: "py${{ matrix.python_version }}"
-    runs-on: ubuntu-latest
+    name: "py${{ matrix.python_version }} (${{ matrix.os }})"
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -64,6 +69,7 @@ jobs:
           COVERAGE_FILE: ".coverage.${{ matrix.python_version }}"
 
       - name: Store coverage file
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-${{ matrix.python_version }}

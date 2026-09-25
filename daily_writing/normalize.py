@@ -88,11 +88,11 @@ def normalize_writing(writing: models.Writing, rewrite: bool) -> bool:
         cleanups=True,
     )
 
-    if new_content == writing.md_path.read_text():
+    if new_content == writing.md_path.read_text(encoding="utf-8"):
         logger.debug(f"No changes for {writing.md_path}")
         return False
 
-    writing.md_path.write_text(new_content)
+    writing.md_path.write_text(new_content, encoding="utf-8")
     logger.info(f"Normalized: {writing.md_path}")
 
     return True

@@ -105,7 +105,9 @@ def test_index_page__asset_urls(dw_settings, page_metadata, tmp_path):
     """Every asset link sits under the base path, and extra_css is served from the
     static dir rather than the source path it is configured with."""
     (tmp_path / "static" / "css").mkdir(parents=True)
-    (tmp_path / "static" / "css" / "extra.css").write_text("/* extra */")
+    (tmp_path / "static" / "css" / "extra.css").write_text(
+        "/* extra */", encoding="utf-8"
+    )
     settings = dw_settings(
         site_url="https://foo.bar/my-project",
         extra_css=["static/css/extra.css"],

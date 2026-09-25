@@ -186,7 +186,8 @@ class MarkdownFile:
     @classmethod
     def from_md_path(cls, md_path: pathlib.Path) -> Self:
         return cls(
-            md_path=md_path, post=frontmatter.load(io.StringIO(md_path.read_text()))
+            md_path=md_path,
+            post=frontmatter.load(io.StringIO(md_path.read_text(encoding="utf-8"))),
         )
 
     @functools.cached_property

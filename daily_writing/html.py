@@ -144,7 +144,7 @@ def social_preview_meta(
 ):
     url = str(settings.site_url / (page_metadata.url_path or ""))
     image = str(
-        (settings.site_url / str(page_metadata.social_preview_path)).with_query(
+        (settings.site_url / page_metadata.social_preview_path.as_posix()).with_query(
             hash=page_metadata.social_preview_signature
         )
     )

@@ -7,7 +7,7 @@ def test_normalize_writing__adds_frontmatter(make_writing):
     modified = normalize.normalize_writing(writing=writing, rewrite=False)
 
     assert modified is True
-    new_text = writing.md_path.read_text()
+    new_text = writing.md_path.read_text(encoding="utf-8")
     assert new_text.startswith("---")
     assert "full_title: 01 - Backpack" in new_text
 
@@ -18,12 +18,12 @@ def test_normalize_writing__skips_when_metadata_present(make_writing):
         "prompts:\n  - {date: 2024-10-01, title: Backpack}\n"
         "---\nContent.\n",
     )
-    original = writing.md_path.read_text()
+    original = writing.md_path.read_text(encoding="utf-8")
 
     modified = normalize.normalize_writing(writing=writing, rewrite=False)
 
     assert modified is False
-    assert writing.md_path.read_text() == original
+    assert writing.md_path.read_text(encoding="utf-8") == original
 
 
 def test_no_alias_dumper_ignores_aliases():

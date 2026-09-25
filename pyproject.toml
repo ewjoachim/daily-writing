@@ -151,7 +151,6 @@ ignore = [
     "N818",    # https://docs.astral.sh/ruff/rules/error-suffix-on-exception-name/
     "PLR2004", # https://docs.astral.sh/ruff/rules/magic-value-comparison/
     "S324",    # https://docs.astral.sh/ruff/rules/hashlib-insecure-hash-function/
-    "PLW1514", # https://docs.astral.sh/ruff/rules/unspecified-encoding/
     "PLR6301", # https://docs.astral.sh/ruff/rules/no-self-use/
     "S101",    # https://docs.astral.sh/ruff/rules/assert/
     "S704",    # https://docs.astral.sh/ruff/rules/unsafe-markup-use/
