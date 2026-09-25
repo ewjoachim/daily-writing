@@ -58,7 +58,7 @@ def get_next[T](obj: T, iterable: Iterable[T]) -> T | None:
 def get_repository_url_for_file(
     repository_url: str, repository_file_url_prefix: str, file: pathlib.Path
 ) -> str:
-    return str(yarl.URL(repository_url) / repository_file_url_prefix / str(file))
+    return str(yarl.URL(repository_url) / repository_file_url_prefix / file.as_posix())
 
 
 def cache_bust():
