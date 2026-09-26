@@ -26,12 +26,12 @@ def normalize(settings: settings_module.CLISettings) -> None:
         raise NotImplementedError()
 
     modified = 0
-    paths = {path.absolute() for path in settings.normalize.paths}
+    paths = {path.resolve() for path in settings.normalize.paths}
 
     for writing in models.Writing.get_all_writings(
         settings=settings, restrict_to_paths=set(paths)
     ):
-        paths -= {writing.markdown_file.md_path}
+        paths -= {writing.markdown_file.md_path.resolve()}
         logger.debug(f"Normalizing {writing.markdown_file.md_path}")
         modified += int(normalize_writing(writing=writing))
 
