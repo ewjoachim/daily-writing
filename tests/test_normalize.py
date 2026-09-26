@@ -1,3 +1,6 @@
+import pathlib
+import types
+
 from daily_writing import normalize
 
 
@@ -107,3 +110,16 @@ Content.
 def test_no_alias_dumper_ignores_aliases():
     dumper = normalize.NoAliasDumper(None)
     assert dumper.ignore_aliases(data=object()) is True
+
+
+def test_normalize__relative_paths(write_md, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    md_path = write_md("2024/10/01-backpack.md", "# 01 - Backpack\n\nSome content.\n")
+    settings = types.SimpleNamespace(
+        source_dir=pathlib.Path("."),
+        normalize=types.SimpleNamespace(paths={pathlib.Path("2024/10/01-backpack.md")}),
+    )
+
+    normalize.normalize(settings=settings)
+
+    assert md_path.read_text(encoding="utf-8").startswith("---\n")

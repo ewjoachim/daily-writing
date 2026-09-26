@@ -468,7 +468,7 @@ class Writing:
         all_seen_dates: set[datetime.date],
     ) -> Iterator[Writing]:
         for path in sorted(folder.iterdir()):
-            if restrict_to_paths and path not in restrict_to_paths:
+            if restrict_to_paths and path.resolve() not in restrict_to_paths:
                 logger.debug(
                     f"{path}: Skipping as not in request paths ({restrict_to_paths})"
                 )
