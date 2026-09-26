@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_854293ef6dbebf8e_normalize_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-26 10:18 +0000
+            created at 2026-09-26 14:38 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -552,7 +552,7 @@
     <p class="run run2"><span class="n"><a id="t468" href="#t468">468</a></span><span class="t">        <span class="nam">all_seen_dates</span><span class="op">:</span> <span class="nam">set</span><span class="op">[</span><span class="nam">datetime</span><span class="op">.</span><span class="nam">date</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t469" href="#t469">469</a></span><span class="t">    <span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">Iterator</span><span class="op">[</span><span class="nam">Writing</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t470" href="#t470">470</a></span><span class="t">        <span class="key">for</span> <span class="nam">path</span> <span class="key">in</span> <span class="nam">sorted</span><span class="op">(</span><span class="nam">folder</span><span class="op">.</span><span class="nam">iterdir</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t471" href="#t471">471</a></span><span class="t">            <span class="key">if</span> <span class="nam">restrict_to_paths</span> <span class="key">and</span> <span class="nam">path</span> <span class="key">not</span> <span class="key">in</span> <span class="nam">restrict_to_paths</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">471&#x202F;&#x219B;&#x202F;472</span><span class="annotate long">line 471 didn't jump to line 472 because the condition on line 471 was never true</span></span></p>
+    <p class="par run show_par"><span class="n"><a id="t471" href="#t471">471</a></span><span class="t">            <span class="key">if</span> <span class="nam">restrict_to_paths</span> <span class="key">and</span> <span class="nam">path</span><span class="op">.</span><span class="nam">resolve</span><span class="op">(</span><span class="op">)</span> <span class="key">not</span> <span class="key">in</span> <span class="nam">restrict_to_paths</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">471&#x202F;&#x219B;&#x202F;472</span><span class="annotate long">line 471 didn't jump to line 472 because the condition on line 471 was never true</span></span></p>
     <p class="mis show_mis"><span class="n"><a id="t472" href="#t472">472</a></span><span class="t">                <span class="nam">logger</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t473" href="#t473">473</a></span><span class="t">                    <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">path</span><span class="op">}</span><span class="fst">: Skipping as not in request paths (</span><span class="op">{</span><span class="nam">restrict_to_paths</span><span class="op">}</span><span class="fst">)</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t474" href="#t474">474</a></span><span class="t">                <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -667,7 +667,7 @@
             <a class="nav" href="z_854293ef6dbebf8e_normalize_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-26 10:18 +0000
+            created at 2026-09-26 14:38 +0000
         </p>
     </div>
 </footer>

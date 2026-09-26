@@ -15,12 +15,12 @@
 | daily\_writing/html.py            |      122 |        2 |       32 |        3 |     97% |81-\>84, 270, 273 |
 | daily\_writing/i18n.py            |       35 |        0 |        6 |        0 |    100% |           |
 | daily\_writing/models.py          |      259 |       15 |       54 |        5 |     94% |97, 420-421, 425, 428-430, 432-433, 472-475, 482-484, 503 |
-| daily\_writing/normalize.py       |       43 |       10 |       12 |        0 |     75% |     25-42 |
+| daily\_writing/normalize.py       |       43 |        1 |       12 |        1 |     96% |        39 |
 | daily\_writing/serve.py           |       70 |       41 |        6 |        0 |     41% |    47-124 |
 | daily\_writing/settings.py        |      203 |        4 |       24 |        0 |     98% |193-194, 649, 661 |
 | daily\_writing/social\_preview.py |       68 |        1 |       10 |        1 |     97% |        64 |
 | daily\_writing/utils.py           |       62 |        0 |       20 |        0 |    100% |           |
-| **TOTAL**                         | **1377** |  **100** |  **310** |   **31** | **92%** |           |
+| **TOTAL**                         | **1377** |   **91** |  **310** |   **32** | **92%** |           |
 
 
 ## Setup coverage badge
