@@ -54,8 +54,8 @@ Daily Writing offers various features, such as:
 - Posts can be written in advance and will only be published of their date.
 - Links to the previous and next writings, for binge-reading.
 - Most metadata can be extracted from the name of the file and the writing markdown
-  title, but can then be normalized to frontmatter. Having a frontmatter is necessaryÒ when
-  using a CMS editor.
+  title, but can then be normalized to frontmatter. Having a frontmatter is necessary when
+  using a CMS editor. Normalization also applies Markdown formatting.
 - Writings spanning multiple days will have a gradient between the colors of the days.
 - A CMS, at `/admin` to update your writings and the site settings directly from your
   browser.
