@@ -19,8 +19,8 @@ class NoAliasDumper(yaml.SafeDumper):
 
 def normalize(settings: settings_module.CLISettings) -> None:
     """
-    Add frontmatter to writings that don't have it (can be forced), extracting metadata
-    from filename and content
+    Make the metadata detected from filename and content explicit in the frontmatter
+    (never changing detected values), and reformat writings with flowmark
     """
     if not settings.normalize:
         raise NotImplementedError()
@@ -33,9 +33,7 @@ def normalize(settings: settings_module.CLISettings) -> None:
     ):
         paths -= {writing.markdown_file.md_path}
         logger.debug(f"Normalizing {writing.markdown_file.md_path}")
-        modified += int(
-            normalize_writing(writing=writing, rewrite=settings.normalize.rewrite)
-        )
+        modified += int(normalize_writing(writing=writing))
 
     if paths:
         logger.warning(
@@ -44,46 +42,35 @@ def normalize(settings: settings_module.CLISettings) -> None:
     logger.info(f"Normalized {modified} writings.")
 
 
-def normalize_writing(writing: models.Writing, rewrite: bool) -> bool:
-    markdown_file = writing.markdown_file
+def explicit_metadata(writing: models.Writing) -> dict[str, Any]:
+    metadata = dict(writing.markdown_file.post.metadata)
 
-    if markdown_file.writing_metadata.model_dump(exclude_defaults=True) and not rewrite:
-        logger.debug(f"Already has metadata, skipping: {writing.md_path}")
-        return False
+    if "prompts" not in metadata:
+        metadata.pop("title", None)
+        metadata.pop("original_prompt", None)
 
-    post = markdown_file.post
-
-    prompts = [
+    metadata["prompts"] = [
         models.PartialPrompt(
-            title=prompt.title,
+            title=prompt.title or None,
             original_prompt=prompt.original_prompt,
             date=prompt.date,
-        )
+        ).model_dump(exclude_defaults=True)
         for prompt in writing.prompts
     ]
+    if not metadata.get("full_title"):
+        metadata["full_title"] = writing.full_title
+    if not metadata.get("date"):
+        metadata["date"] = writing.first_date
 
-    front_matter = models.MultiplePromptsFrontMatter(
-        full_title=writing.full_title,
-        date=min(p.date for p in prompts if p.date),
-        prompts=prompts,
+    return metadata
+
+
+def normalize_writing(writing: models.Writing) -> bool:
+    post = frontmatter.Post(
+        content=writing.markdown_file.post.content, **explicit_metadata(writing)
     )
-
-    new_metadata = front_matter.model_dump(exclude_defaults=True)
-
-    if not new_metadata:
-        logger.debug(f"No metadata to add for {writing.md_path}")
-        return False
-
-    body = post.content
-
-    # Create new post with frontmatter
-    new_post = frontmatter.Post(content=body, **new_metadata)
-
-    # Write back with trailing newline
-    # Remove the blank line between the frontmatter and the post (for compatibility
-    # with flowmark)
     new_content = flowmark.reformat_text(
-        frontmatter.dumps(post=new_post, Dumper=NoAliasDumper) + "\n",
+        frontmatter.dumps(post=post, Dumper=NoAliasDumper) + "\n",
         ellipses=True,
         cleanups=True,
     )

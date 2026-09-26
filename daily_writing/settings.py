@@ -177,11 +177,6 @@ class Normalize(pydantic.BaseModel):
         pydantic.Field(description="Files to normalize"),
     ] = set()
 
-    rewrite: Annotated[
-        bool,
-        pydantic.Field(description="If set, overwrites existing front-matters"),
-    ] = False
-
 
 type GenericFont = Literal["serif", "sans-serif"]
 
@@ -645,7 +640,7 @@ class CLISettings(Settings):
     normalize: Annotated[
         pydantic_settings.CliSubCommand[Normalize],
         pydantic.Field(
-            description="Add frontmatter to writings that don't have it, extracting metadata from filename and content"
+            description="Make metadata detected from filename and content explicit in the frontmatter, and reformat writings"
         ),
     ]
 
