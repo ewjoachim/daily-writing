@@ -71,6 +71,7 @@ def normalize_writing(writing: models.Writing) -> bool:
     )
     new_content = flowmark.reformat_text(
         frontmatter.dumps(post=post, Dumper=NoAliasDumper) + "\n",
+        semantic=False,
         ellipses=True,
         cleanups=True,
     )

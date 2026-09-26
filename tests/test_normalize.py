@@ -123,3 +123,13 @@ def test_normalize__relative_paths(write_md, monkeypatch, tmp_path):
     normalize.normalize(settings=settings)
 
     assert md_path.read_text(encoding="utf-8").startswith("---\n")
+
+
+def test_normalize_writing__no_sentence_breaks(make_writing):
+    writing = make_writing(content="# 01 - Backpack\n\nFirst sentence. Second one.\n")
+
+    normalize.normalize_writing(writing=writing)
+
+    assert "First sentence. Second one.\n" in writing.md_path.read_text(
+        encoding="utf-8"
+    )
