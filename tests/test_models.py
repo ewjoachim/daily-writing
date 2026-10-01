@@ -188,6 +188,26 @@ def test_get_all_writings(dw_settings, write_md):
     ]
 
 
+def test_get_all_writings__urls(dw_settings, write_md):
+    write_md("2024/03/05-foo.md", "A.\n")
+    write_md("2024/10/12-bar.md", "B.\n")
+
+    writings = models.Writing.get_all_writings(settings=dw_settings())
+
+    assert [w.url for w in writings] == ["2024/3/5-foo/", "2024/10/12-bar/"]
+
+
+def test_get_all_writings__zero_pad_url_dates(dw_settings, write_md):
+    write_md("2024/03/05-foo.md", "A.\n")
+    write_md("2024/10/12-bar.md", "B.\n")
+
+    writings = models.Writing.get_all_writings(
+        settings=dw_settings(zero_pad_url_dates=True)
+    )
+
+    assert [w.url for w in writings] == ["2024/03/05-foo/", "2024/10/12-bar/"]
+
+
 def test_get_all_writings__duplicate_date(dw_settings, write_md):
     write_md("2024/10/01-foo.md", "A.\n")
     write_md("2024/10/01-bar.md", "B.\n")
