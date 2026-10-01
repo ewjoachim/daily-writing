@@ -117,6 +117,7 @@ def test_normalize__relative_paths(write_md, monkeypatch, tmp_path):
     md_path = write_md("2024/10/01-backpack.md", "# 01 - Backpack\n\nSome content.\n")
     settings = types.SimpleNamespace(
         source_dir=pathlib.Path("."),
+        zero_pad_url_dates=False,
         normalize=types.SimpleNamespace(paths={pathlib.Path("2024/10/01-backpack.md")}),
     )
 

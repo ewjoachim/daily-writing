@@ -339,6 +339,7 @@ class Writing:
         path: pathlib.Path,
         month: int,
         year: int,
+        zero_pad: bool = False,
     ) -> Self:
         if path.suffix.lower() != ".md":
             raise NotAWriting
@@ -375,11 +376,12 @@ class Writing:
                 {front_matter_prompts=}""")
         full_title = extract_full_title(markdown_file=markdown_file, prompts=prompts)
 
+        number_format = "02" if zero_pad else ""
         url_elements = [
-            *[f"{p.date.day}" for p in prompts],
+            *[f"{p.date.day:{number_format}}" for p in prompts],
             *[p.original_prompt for p in prompts if p.original_prompt],
         ]
-        url = f"{year}/{month}/{'-'.join(url_elements)}/"
+        url = f"{year}/{month:{number_format}}/{'-'.join(url_elements)}/"
 
         return cls(
             url=url,
@@ -439,6 +441,7 @@ class Writing:
                     year=year,
                     restrict_to_paths=restrict_to_paths,
                     all_seen_dates=all_seen_dates,
+                    zero_pad=settings.zero_pad_url_dates,
                 )
 
     @classmethod
@@ -466,6 +469,7 @@ class Writing:
         year: int,
         restrict_to_paths: set[pathlib.Path] | None = None,
         all_seen_dates: set[datetime.date],
+        zero_pad: bool = False,
     ) -> Iterator[Writing]:
         for path in sorted(folder.iterdir()):
             if restrict_to_paths and path.resolve() not in restrict_to_paths:
@@ -478,6 +482,7 @@ class Writing:
                     path=path.relative_to(source_dir, walk_up=True),
                     month=month,
                     year=year,
+                    zero_pad=zero_pad,
                 )
             except NotAWriting:
                 logger.debug(f"{path}: Skipping as not a writing", exc_info=True)

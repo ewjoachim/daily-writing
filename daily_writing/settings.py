@@ -553,6 +553,14 @@ class Settings(
         CMSFieldOverride(exclude=True),
     ] = False
 
+    zero_pad_url_dates: Annotated[
+        bool,
+        pydantic.Field(
+            description="Write months and days in writing URLs with a leading zero (2024/03/05-foo/ instead of 2024/3/5-foo/). Changing it changes the URL of existing writings."
+        ),
+        CMSFieldOverride(exclude=True),
+    ] = False
+
     @property
     def base_path(self) -> yarl.URL:
         return yarl.URL(self.site_url.path)
