@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from daily_writing import build_context, html, models
@@ -133,6 +135,32 @@ def test_index_page__asset_urls(dw_settings, page_metadata, tmp_path):
     assert '"/my-project/static/favicon.ico"' in result
     assert '"/my-project/feed.atom"' in result
     assert '"/static/' not in result
+
+
+def test_index_page__extra_css_loads_last(dw_settings, page_metadata, tmp_path):
+    (tmp_path / "static").mkdir()
+    (tmp_path / "static" / "extra.css").write_text("/* extra */", encoding="utf-8")
+    settings = dw_settings(extra_css=["static/extra.css"])
+    markdown_file = models.MarkdownFile.from_md_path(md_path=settings.homepage_path)
+
+    result = str(
+        html.index_page(
+            settings=settings,
+            context=build_context.BuildContext(),
+            writings=[],
+            markdown_file=markdown_file,
+            page_metadata=page_metadata(),
+            colors=["#ffffff"],
+            node_cache={},
+        )
+    )
+
+    stylesheets = re.findall(r'rel="stylesheet" type="text/css" href="([^"?]+)', result)
+    assert stylesheets == [
+        "/static/style.css",
+        "/static/fonts.css",
+        "/static/extra.css",
+    ]
 
 
 def test_writing_page__full_navigation(dw_settings, page_metadata, month_writings):
