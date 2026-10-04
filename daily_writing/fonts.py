@@ -1,6 +1,7 @@
 import functools
 import io
 import pathlib
+import re
 import sys
 from collections.abc import Callable, Iterable
 from typing import Literal
@@ -97,6 +98,9 @@ BROWSER_UA = (
 # Body text (normal), headings (bold), each upright and italic. css2 silently
 # drops the combinations a family doesn't have.
 FONT_VARIANTS = "ital,wght@0,400;0,700;1,400;1,700"
+# Bump to invalidate existing caches when their layout changes.
+FONT_CACHE_VERSION = "v2"
+UNSAFE_FILE_NAME_CHARS = re.compile(r"[^\w.-]", flags=re.ASCII)
 
 
 def build_google_font(
@@ -144,7 +148,7 @@ def build_google_font(
             if not isinstance(token, tinycss2.ast.URLToken):
                 continue
             data = fetch(token.value)
-            font_path = static_path / token.value.rsplit("/", 1)[-1]
+            font_path = static_path / font_file_name(token.value)
             font_artifacts.append(
                 artifacts.BytesArtifact(contents=io.BytesIO(data), path=font_path)
             )
@@ -161,6 +165,15 @@ def build_google_font(
     return font_artifacts, css, list(coverage_faces.values())
 
 
+def font_file_name(url: str) -> str:
+    """
+    Name of the file a font URL is saved to, safe on every OS and in URLs
+    (gstatic sometimes serves ``font?kit=…``). Idempotent, so that the localized
+    URL of a cached font gives back the same name.
+    """
+    return UNSAFE_FILE_NAME_CHARS.sub("_", url.rsplit("/", 1)[-1])
+
+
 def download_google_font(
     settings: settings_module.Settings,
     name: str,
@@ -168,7 +181,7 @@ def download_google_font(
 ) -> FontFamily:
     """Fetch a Google font as self-hosted woff2 through the css2 API."""
     static_path = settings.build_static_dir
-    cache_dir = settings.cache_dir / name / FONT_VARIANTS
+    cache_dir = settings.cache_dir / name / FONT_VARIANTS / FONT_CACHE_VERSION
     cached_css = cache_dir / settings.fonts_css_filename
 
     if cached_css.exists():
@@ -178,7 +191,7 @@ def download_google_font(
         # the artifacts and the URLs.
         font_artifacts, css, coverage_faces = build_google_font(
             css=cached_css.read_text(encoding="utf-8"),
-            fetch=lambda url: (cache_dir / url.rsplit("/", 1)[-1]).read_bytes(),
+            fetch=lambda url: (cache_dir / font_file_name(url)).read_bytes(),
             static_path=static_path,
             font_url=settings.static_url,
         )
