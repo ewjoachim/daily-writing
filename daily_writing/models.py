@@ -15,7 +15,7 @@ import pydantic
 from mdit_py_plugins import footnote
 from pydantic import dataclasses as pdataclasses
 
-from . import i18n, utils
+from . import callouts, i18n, utils
 from . import settings as settings_module
 
 logger = logging.getLogger("daily_writing")
@@ -232,6 +232,7 @@ class MarkdownFile:
         )
         parser.enable(["replacements", "smartquotes"])
         parser.use(footnote.footnote_plugin)
+        parser.use(callouts.callout_plugin)
         return parser
 
     def get_html(self, title_fallback: str):
