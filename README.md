@@ -73,6 +73,7 @@ Daily Writing offers various features, such as:
   languages that Unicode supports.
 - If you rename a file but want to keep its original URL too, you can add aliases.
 - Site is 100% usable without javascript for users.
+- Callouts, with any kind and an optional title (see [Callouts](#callouts)).
 
 Author's personal undying love of handcrafted open source and meticulous yak shaving
 went into this project. He likes to think that it shows.
@@ -96,6 +97,23 @@ that says: `# 03&04 - Bonjour, Obscurité`. The system will find that this writi
 - `2026-10-04` for which the prompt is `darkness` and the title `Obscurité`.
 
 You can always override those values by editing the frontmatter.
+
+## Callouts
+
+Blockquotes starting with `[!kind]` become callouts, using the
+[Obsidian syntax](https://help.obsidian.md/callouts), a superset of
+[GitHub alerts](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts):
+
+```markdown
+> [!memory] A long time ago
+> In a galaxy far, far away.
+```
+
+Any kind is accepted. The title is optional and defaults to the capitalized kind. The
+callout is rendered with GitHub's classes (`markdown-alert markdown-alert-memory`, and
+`markdown-alert-title` for the title), so you can style each kind with
+[extra CSS](#configuration). Anywhere else, the callout degrades to a plain
+blockquote.
 
 ## Installation
 

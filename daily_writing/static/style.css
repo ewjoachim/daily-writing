@@ -55,6 +55,18 @@ a {
     color: #e89217;
 }
 
+.markdown-alert {
+    border-left: 4px solid currentColor;
+    background-color: hsl(0, 0%, 14%);
+    padding: 0.5em 1em;
+    margin: 1em 0;
+}
+
+.markdown-alert-title {
+    font-weight: 700;
+    margin: 0;
+}
+
 .svg-button {
     margin: 1em;
     cursor: pointer;
