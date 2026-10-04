@@ -485,7 +485,8 @@ def writing_page(
                     )[
                         markupsafe.Markup(
                             writing.markdown_file.get_html(
-                                title_fallback=writing.full_title
+                                title_fallback=writing.full_title,
+                                site_url=settings.site_url,
                             )
                         ),
                     ],
@@ -525,7 +526,10 @@ def index_page(
                         ".markdown",
                     )[
                         markupsafe.Markup(
-                            markdown_file.get_html(title_fallback=settings.site_name)
+                            markdown_file.get_html(
+                                title_fallback=settings.site_name,
+                                site_url=settings.site_url,
+                            )
                         ),
                     ],
                 ],
