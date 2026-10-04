@@ -10,7 +10,7 @@
 | daily\_writing/atom.py            |       34 |        0 |        4 |        0 |    100% |           |
 | daily\_writing/build.py           |       65 |        0 |       10 |        0 |    100% |           |
 | daily\_writing/build\_context.py  |        4 |        0 |        0 |        0 |    100% |           |
-| daily\_writing/callouts.py        |       33 |        0 |        8 |        0 |    100% |           |
+| daily\_writing/callouts.py        |       40 |        0 |       14 |        0 |    100% |           |
 | daily\_writing/cms.py             |      142 |        1 |       52 |        5 |     97% |47-\>49, 51-\>53, 110, 114-\>134, 165-\>169 |
 | daily\_writing/fonts.py           |      214 |       23 |       68 |       15 |     85% |62-64, 68-70, 136, 163, 259-261, 266-268, 274-276, 289-\>288, 293, 298, 300, 314-\>317, 318-\>321, 375, 410, 472, 482-\>491 |
 | daily\_writing/html.py            |      122 |        2 |       32 |        3 |     97% |81-\>84, 270, 273 |
@@ -22,7 +22,7 @@
 | daily\_writing/settings.py        |      204 |        4 |       24 |        0 |     98% |193-194, 657, 669 |
 | daily\_writing/social\_preview.py |       68 |        1 |       10 |        1 |     97% |        64 |
 | daily\_writing/utils.py           |       62 |        0 |       20 |        0 |    100% |           |
-| **TOTAL**                         | **1437** |   **91** |  **326** |   **32** | **93%** |           |
+| **TOTAL**                         | **1444** |   **91** |  **332** |   **32** | **93%** |           |
 
 
 ## Setup coverage badge
