@@ -49,6 +49,24 @@ def test_callout__nested(render):
     )
 
 
+def test_callout__foldable_closed(render):
+    assert render("> [!souvenir]-\n> Body.\n") == (
+        '<details class="markdown-alert markdown-alert-souvenir">\n'
+        '<summary class="markdown-alert-title">Souvenir</summary>\n'
+        "<p>Body.</p>\n"
+        "</details>\n"
+    )
+
+
+def test_callout__foldable_open_with_title(render):
+    assert render("> [!souvenir]+ Il y a longtemps\n> Body.\n") == (
+        '<details class="markdown-alert markdown-alert-souvenir" open="">\n'
+        '<summary class="markdown-alert-title">Il y a longtemps</summary>\n'
+        "<p>Body.</p>\n"
+        "</details>\n"
+    )
+
+
 @pytest.mark.parametrize(
     "source",
     [
