@@ -115,6 +115,15 @@ callout is rendered with GitHub's classes (`markdown-alert markdown-alert-memory
 [extra CSS](#configuration). Anywhere else, the callout degrades to a plain
 blockquote.
 
+Add `-` or `+` right after the kind to make the callout foldable, closed or open by
+default. It's then rendered as a `<details>` element, with the title as its
+`<summary>`:
+
+```markdown
+> [!spoiler]- Click to reveal
+> The butler did it.
+```
+
 ## Installation
 
 ### Github
