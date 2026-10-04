@@ -12,10 +12,11 @@ import frontmatter
 import markdown_it
 import markdown_it.tree
 import pydantic
+import yarl
 from mdit_py_plugins import footnote
 from pydantic import dataclasses as pdataclasses
 
-from . import callouts, i18n, utils
+from . import callouts, i18n, links, utils
 from . import settings as settings_module
 
 logger = logging.getLogger("daily_writing")
@@ -233,13 +234,14 @@ class MarkdownFile:
         parser.enable(["replacements", "smartquotes"])
         parser.use(footnote.footnote_plugin)
         parser.use(callouts.callout_plugin)
+        parser.use(links.external_links_plugin)
         return parser
 
-    def get_html(self, title_fallback: str):
+    def get_html(self, title_fallback: str, site_url: yarl.URL):
         markdown = self.markdown
         if self.text_title is None:
             markdown = f"# {title_fallback}\n{markdown}"
-        return self._markdown_it_parser.render(markdown)
+        return self._markdown_it_parser.render(markdown, env={"site_url": site_url})
 
     @functools.cached_property
     def text_content(self) -> str:

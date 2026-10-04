@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+import yarl
 
 from daily_writing import i18n, models
 
@@ -100,7 +101,9 @@ def test_markdown_file(write_md):
 
     assert md.text_title == "My Title"
     assert "Hello world content." in md.text_content
-    assert "<h1>My Title</h1>" in md.get_html(title_fallback="fallback")
+    assert "<h1>My Title</h1>" in md.get_html(
+        title_fallback="fallback", site_url=yarl.URL("https://foo.bar")
+    )
 
 
 def test_markdown_file__utf8(write_md):
@@ -116,7 +119,9 @@ def test_markdown_file__title_fallback(write_md):
     md = models.MarkdownFile.from_md_path(md_path=path)
 
     assert md.text_title is None
-    assert "<h1>fallback</h1>" in md.get_html(title_fallback="fallback")
+    assert "<h1>fallback</h1>" in md.get_html(
+        title_fallback="fallback", site_url=yarl.URL("https://foo.bar")
+    )
 
 
 def test_markdown_file__description_from_frontmatter(write_md):
