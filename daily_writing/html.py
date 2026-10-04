@@ -91,14 +91,6 @@ def head(
             ),
             social_preview_meta(),
             h.title[" — ".join(title_elements)],
-            [
-                h.link(
-                    rel="stylesheet",
-                    type="text/css",
-                    href=f"{settings.source_static_url(extra_css)}?{utils.cache_bust()}",
-                )
-                for extra_css in settings.extra_css
-            ],
             h.link(
                 rel="stylesheet",
                 type="text/css",
@@ -109,6 +101,14 @@ def head(
                 type="text/css",
                 href=f"{settings.static_url(settings.fonts_css_filename)}?{utils.cache_bust()}",
             ),
+            [
+                h.link(
+                    rel="stylesheet",
+                    type="text/css",
+                    href=f"{settings.source_static_url(extra_css)}?{utils.cache_bust()}",
+                )
+                for extra_css in settings.extra_css
+            ],
             favicons(),
             h.link(
                 rel="alternate",
