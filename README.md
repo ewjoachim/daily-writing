@@ -10,17 +10,18 @@
 | daily\_writing/atom.py            |       34 |        0 |        4 |        0 |    100% |           |
 | daily\_writing/build.py           |       65 |        0 |       10 |        0 |    100% |           |
 | daily\_writing/build\_context.py  |        4 |        0 |        0 |        0 |    100% |           |
+| daily\_writing/callouts.py        |       33 |        0 |        8 |        0 |    100% |           |
 | daily\_writing/cms.py             |      142 |        1 |       52 |        5 |     97% |47-\>49, 51-\>53, 110, 114-\>134, 165-\>169 |
 | daily\_writing/fonts.py           |      209 |       23 |       68 |       15 |     85% |61-63, 67-69, 132, 159, 246-248, 253-255, 261-263, 276-\>275, 280, 285, 287, 301-\>304, 305-\>308, 362, 397, 459, 469-\>478 |
 | daily\_writing/html.py            |      122 |        2 |       32 |        3 |     97% |81-\>84, 270, 273 |
 | daily\_writing/i18n.py            |       35 |        0 |        6 |        0 |    100% |           |
-| daily\_writing/models.py          |      260 |       15 |       54 |        5 |     94% |97, 422-423, 427, 430-432, 434-435, 476-479, 487-489, 508 |
+| daily\_writing/models.py          |      261 |       15 |       54 |        5 |     94% |97, 423-424, 428, 431-433, 435-436, 477-480, 488-490, 509 |
 | daily\_writing/normalize.py       |       43 |        1 |       12 |        1 |     96% |        39 |
 | daily\_writing/serve.py           |       70 |       41 |        6 |        0 |     41% |    47-124 |
 | daily\_writing/settings.py        |      204 |        4 |       24 |        0 |     98% |193-194, 657, 669 |
 | daily\_writing/social\_preview.py |       68 |        1 |       10 |        1 |     97% |        64 |
 | daily\_writing/utils.py           |       62 |        0 |       20 |        0 |    100% |           |
-| **TOTAL**                         | **1379** |   **91** |  **310** |   **32** | **92%** |           |
+| **TOTAL**                         | **1413** |   **91** |  **318** |   **32** | **92%** |           |
 
 
 ## Setup coverage badge
