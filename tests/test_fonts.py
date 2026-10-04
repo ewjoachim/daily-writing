@@ -91,6 +91,31 @@ def test_get_font_family__downloads_then_reads_cache(dw_settings, httpx_mock):
     assert cached.coverage_faces[0].getvalue() == b"woff2-bytes"
 
 
+def test_get_font_family__reads_cache_with_query_in_file_name(dw_settings, httpx_mock):
+    settings = dw_settings()
+    font_url = "https://fonts.gstatic.com/l/font?kit=aaaa&skey=bbbb&v=v42"
+    httpx_mock.add_response(
+        url=re.compile(r"https://fonts\.googleapis\.com/css2.*"),
+        text=CSS2_STYLESHEET.replace(
+            "https://fonts.gstatic.com/s/testfont/v1/aaaa.woff2", font_url
+        ),
+    )
+    httpx_mock.add_response(url=font_url, content=b"woff2-bytes")
+
+    downloaded = fonts.get_font_family(
+        settings=settings, font_input="Test Font", fallback="serif"
+    )
+    cached = fonts.get_font_family(
+        settings=settings, font_input="Test Font", fallback="serif"
+    )
+
+    assert downloaded.artifacts[0].path.name == "font_kit_aaaa_skey_bbbb_v_v42"
+    assert "url(/static/font_kit_aaaa_skey_bbbb_v_v42)" in downloaded.css_parts[0]
+    assert cached.css_parts == downloaded.css_parts
+    assert [a.path for a in cached.artifacts] == [a.path for a in downloaded.artifacts]
+    assert cached.coverage_faces[0].getvalue() == b"woff2-bytes"
+
+
 def test_get_font_family__from_files_uses_site_base_path(dw_settings, variable_font):
     settings = dw_settings(site_url=yarl.URL("https://foo.bar/below/"))
 
