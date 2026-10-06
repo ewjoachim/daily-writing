@@ -472,7 +472,7 @@ class Settings(
         ),
         CMSFieldOverride(exclude=True),
         # renovate: datasource=npm depName=@sveltia/cms
-    ] = "0.211.2"
+    ] = "0.229.0"
 
     # Dirs
     source_dir: Annotated[
