@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import pathlib
 
 import pytest
@@ -76,8 +76,8 @@ def test_date_grouper(second_day, expect_same_group):
     def key(d):
         return d
 
-    first = utils.date_grouper(0, datetime.date(2024, 10, 1), key=key)
-    second = utils.date_grouper(1, datetime.date(2024, 10, second_day), key=key)
+    first = utils.date_grouper(0, dt.date(2024, 10, 1), key=key)
+    second = utils.date_grouper(1, dt.date(2024, 10, second_day), key=key)
     assert (first == second) is expect_same_group
 
 
@@ -89,8 +89,8 @@ def test_first_weekday():
 @pytest.mark.parametrize(
     ("dates", "expected"),
     [
-        ((datetime.date(2024, 10, 1), datetime.date(2024, 10, 31)), True),
-        ((datetime.date(2024, 10, 1), datetime.date(2024, 11, 1)), False),
+        ((dt.date(2024, 10, 1), dt.date(2024, 10, 31)), True),
+        ((dt.date(2024, 10, 1), dt.date(2024, 11, 1)), False),
     ],
 )
 def test_same_month(dates, expected):

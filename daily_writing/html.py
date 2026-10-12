@@ -1,5 +1,5 @@
 import calendar
-import datetime
+import datetime as dt
 import itertools
 from collections.abc import Iterable
 from typing import Literal
@@ -261,7 +261,7 @@ def iter_prompts_groups(
     by_date = {date: pg for pg in prompt_groups for date in pg.dates}
     # Min date is the first day of week of the first week containing a prompt
     min_date = min(by_date)
-    min_date -= datetime.timedelta(days=min_date.weekday() - first_day_of_week.as_int)
+    min_date -= dt.timedelta(days=min_date.weekday() - first_day_of_week.as_int)
     # Max date is the last day containing a prompt (no need to yield empty days after that)
     max_date = max(by_date)
     while True:

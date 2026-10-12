@@ -1,5 +1,5 @@
 import calendar
-import datetime
+import datetime as dt
 import functools
 import itertools
 import pathlib
@@ -66,7 +66,7 @@ def cache_bust():
 
 
 def date_grouper[T](
-    index: int, element: T, *, key: Callable[[T], datetime.date]
+    index: int, element: T, *, key: Callable[[T], dt.date]
 ) -> tuple[int, int, int, int]:
     """
     Take an object from which a date can be extracted, and its index in an iterable, and
@@ -78,7 +78,7 @@ def date_grouper[T](
         date.year,
         date.month,
         week,
-        (date - datetime.date(2000, 1, 1)).days - index,
+        (date - dt.date(2000, 1, 1)).days - index,
     )
 
 
@@ -86,7 +86,7 @@ def first_weekday(year: int, month: int) -> int:
     return calendar.monthrange(year, month)[0]
 
 
-def same_month(*dates: datetime.date) -> bool:
+def same_month(*dates: dt.date) -> bool:
     return len({(date.year, date.month) for date in dates}) == 1
 
 
