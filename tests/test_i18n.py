@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import locale
 
 import babel
@@ -40,7 +40,7 @@ def test_locale_default__without_env(monkeypatch, system, expected):
 
 def test_full_date():
     result = i18n.full_date(
-        dates=[datetime.date(2024, 10, 1), datetime.date(2024, 10, 2)],
+        dates=[dt.date(2024, 10, 1), dt.date(2024, 10, 2)],
         locale=i18n.Locale.from_string("en-us"),
     )
     assert result == "October 1, 2024, October 2, 2024"

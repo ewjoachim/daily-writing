@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import pathlib
 
 from daily_writing import atom
@@ -11,14 +11,14 @@ def test_feed(dw_settings):
             author="Bob",
             description="Fooooo",
         ),
-        updated=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
+        updated=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
     )
 
     feed.add_entry(
         item_id="123",
         title="Bar !",
         link="https://foo.bar/bar",
-        date=datetime.date(2020, 1, 1),
+        date=dt.date(2020, 1, 1),
     )
 
     artifact = feed.get_artifact()
@@ -48,14 +48,14 @@ def test_feed(dw_settings):
 def test_feed__minimal(dw_settings):
     feed = atom.Feed(
         settings=dw_settings(atom_path="foo.xml"),
-        updated=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
+        updated=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
     )
 
     feed.add_entry(
         item_id="123",
         title="Bar !",
         link="https://foo.bar/bar",
-        date=datetime.date(2020, 1, 1),
+        date=dt.date(2020, 1, 1),
     )
 
     artifact = feed.get_artifact()

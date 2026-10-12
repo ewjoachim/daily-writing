@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import enum
 import io
 import json
@@ -121,7 +121,7 @@ def _annotation_to_sveltia(
             }
         if issubclass(annotation, (int, float)):
             return {"widget": "number"}
-        if issubclass(annotation, datetime.date):
+        if issubclass(annotation, dt.date):
             return {
                 "widget": "datetime",
                 "format": "YYYY-MM-DD",

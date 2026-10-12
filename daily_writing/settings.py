@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import enum
 import functools
 import pathlib
@@ -533,9 +533,9 @@ class Settings(
 
     # Cutoff date
     max_date: Annotated[
-        datetime.date,
+        dt.date,
         pydantic.Field(
-            default_factory=lambda data: datetime.datetime.now(
+            default_factory=lambda data: dt.datetime.now(
                 tz=zoneinfo.ZoneInfo(
                     data.get("timezone") or tzlocal.get_localzone().key
                 )

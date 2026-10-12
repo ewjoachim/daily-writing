@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import locale as system_locale
 from typing import Self
 
@@ -35,7 +35,7 @@ class Locale:
         return cls(locale=babel.Locale("en"))
 
 
-def full_date(dates: list[datetime.date], locale: Locale | None) -> str:
+def full_date(dates: list[dt.date], locale: Locale | None) -> str:
     return ", ".join(
         babel.dates.format_date(
             date=date, format="long", locale=locale.locale if locale else None
@@ -47,7 +47,7 @@ def full_date(dates: list[datetime.date], locale: Locale | None) -> str:
 def month_date(year: int, month: int, locale: Locale | None) -> str:
     return babel.dates.format_skeleton(
         skeleton="yyyyMMMM",
-        datetime=datetime.date(year, month, 1),
+        datetime=dt.date(year, month, 1),
         locale=locale.locale if locale else None,
     ).capitalize()
 

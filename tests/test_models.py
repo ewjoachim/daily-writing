@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import pytest
 import yarl
@@ -9,11 +9,11 @@ from daily_writing import i18n, models
 def test_partial_prompt_combine__first_wins():
     combined = models.PartialPrompt.combine(
         models.PartialPrompt(title=None, original_prompt="orig"),
-        models.PartialPrompt(title="from second", date=datetime.date(2024, 10, 1)),
+        models.PartialPrompt(title="from second", date=dt.date(2024, 10, 1)),
     )
     assert combined.title == "from second"
     assert combined.original_prompt == "orig"
-    assert combined.date == datetime.date(2024, 10, 1)
+    assert combined.date == dt.date(2024, 10, 1)
 
 
 def test_partial_prompt_combine__ignores_none():
@@ -35,7 +35,7 @@ def test_select_model(value, expected):
 def test_extract_filename_prompts():
     prompts = list(models.extract_filename_prompts(year=2024, month=10, stem="01-foo"))
     assert len(prompts) == 1
-    assert prompts[0].date == datetime.date(2024, 10, 1)
+    assert prompts[0].date == dt.date(2024, 10, 1)
     assert prompts[0].original_prompt == "foo"
 
 
@@ -54,7 +54,7 @@ def test_extract_markdown_title_prompts__none():
 def test_extract_markdown_title_prompts__day_and_title():
     prompts = list(models.extract_markdown_title_prompts(2024, 10, "5 - Something"))
     assert len(prompts) == 1
-    assert prompts[0].date == datetime.date(2024, 10, 5)
+    assert prompts[0].date == dt.date(2024, 10, 5)
     assert prompts[0].title == "Something"
 
 
@@ -85,14 +85,14 @@ def test_extract_markdown_title_prompts__partial(markdown_title, expected):
 def test_writing_from_path__title_without_day_number(write_md):
     path = write_md("22-test.md", "# TEST\n\nBody.\n")
     writing = models.Writing.from_path(path=path, month=10, year=2024)
-    assert writing.dates == [datetime.date(2024, 10, 22)]
+    assert writing.dates == [dt.date(2024, 10, 22)]
     assert writing.prompts[0].title == "TEST"
 
 
 def test_writing_from_path__day_number_without_title(write_md):
     path = write_md("12-foo.md", "# 12 -\n\nBody.\n")
     writing = models.Writing.from_path(path=path, month=10, year=2024)
-    assert writing.dates == [datetime.date(2024, 10, 12)]
+    assert writing.dates == [dt.date(2024, 10, 12)]
 
 
 def test_markdown_file(write_md):
@@ -154,9 +154,9 @@ def test_writing_from_path(make_writing):
     writing = make_writing()
 
     assert writing.full_title == "01 - Backpack"
-    assert writing.first_date == datetime.date(2024, 10, 1)
+    assert writing.first_date == dt.date(2024, 10, 1)
     assert writing.url == "2024/10/1-backpack/"
-    assert writing.dates == [datetime.date(2024, 10, 1)]
+    assert writing.dates == [dt.date(2024, 10, 1)]
 
 
 def test_writing_from_path__no_prompts(write_md):
@@ -188,8 +188,8 @@ def test_get_all_writings(dw_settings, write_md):
     writings = models.Writing.get_all_writings(settings=dw_settings())
 
     assert [w.first_date for w in writings] == [
-        datetime.date(2024, 10, 1),
-        datetime.date(2024, 10, 2),
+        dt.date(2024, 10, 1),
+        dt.date(2024, 10, 2),
     ]
 
 
@@ -236,5 +236,5 @@ def test_prompt_group(make_writing):
 
     group = writing.single_prompt_group
     assert len(group) == 2
-    assert group.first_date == datetime.date(2024, 10, 1)
+    assert group.first_date == dt.date(2024, 10, 1)
     assert group.get_subtitle(locale=i18n.Locale.from_string("en-us")) == "October 2024"

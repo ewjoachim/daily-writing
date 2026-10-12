@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import functools
 import io
 import itertools
@@ -25,7 +25,7 @@ logger = logging.getLogger("daily_writing")
 class PartialPrompt(pydantic.BaseModel):
     title: str | None = None
     original_prompt: str | None = None
-    date: datetime.date | None = None
+    date: dt.date | None = None
 
     @classmethod
     def combine(cls, *items: Self | None) -> Self:
@@ -61,7 +61,7 @@ class NoPromptsFound(Exception):
 
 @pdataclasses.dataclass(kw_only=True)
 class Prompt:
-    date: datetime.date
+    date: dt.date
     color_index: int
     title: str
     original_prompt: str | None
@@ -75,7 +75,7 @@ class Prompt:
         color_offset: int,
     ) -> Iterator[Self]:
 
-        previous_date: datetime.date | None = None
+        previous_date: dt.date | None = None
 
         for (
             from_frontmatter,
@@ -95,7 +95,7 @@ class Prompt:
                 if not previous_date:
                     logger.warning("Could not determine date")
                     return
-                combined.date = previous_date + datetime.timedelta(days=1)
+                combined.date = previous_date + dt.timedelta(days=1)
 
             previous_date = combined.date
 
@@ -135,7 +135,7 @@ class BaseFrontMatter(pydantic.BaseModel):
         ),
     ] = []
     date: Annotated[
-        datetime.date | None,
+        dt.date | None,
         pydantic.Field(description="Date of first prompt (mainly used for CMS)"),
     ] = None
     is_draft: Annotated[
@@ -215,7 +215,7 @@ class MarkdownFile:
         if isinstance(self.writing_metadata, MultiplePromptsFrontMatter):
             return sorted(
                 self.writing_metadata.prompts,
-                key=lambda p: p.date or datetime.date.max,
+                key=lambda p: p.date or dt.date.max,
             )
 
         return [self.writing_metadata]
@@ -267,7 +267,7 @@ def extract_filename_prompts(
     # and other parts are assumed to be original prompts, in the same order.
     # Note: 1-foo-2-bar or 1-2-foo-bar are both ok.
 
-    dates: list[datetime.date] = []
+    dates: list[dt.date] = []
     original_prompts: list[str] = []
     for part in stem.split("-"):
         try:
@@ -275,7 +275,7 @@ def extract_filename_prompts(
         except ValueError:
             original_prompts.append(part)
         else:
-            dates.append(datetime.date(year=year, month=month, day=day_number))
+            dates.append(dt.date(year=year, month=month, day=day_number))
 
     yield from (
         PartialPrompt(date=date, original_prompt=original_prompt)
@@ -301,7 +301,7 @@ def extract_markdown_title_prompts(
     day_numbers, raw_titles = match.group("day_numbers", "titles")
 
     dates = [
-        datetime.date(year=year, month=month, day=int(e))
+        dt.date(year=year, month=month, day=int(e))
         for e in (day_numbers or "").split("&")
         if e.strip()
     ]
@@ -412,7 +412,7 @@ class Writing:
         settings: settings_module.Settings,
         restrict_to_paths: set[pathlib.Path] | None = None,
     ) -> Iterator[Writing]:
-        all_seen_dates: set[datetime.date] = set()
+        all_seen_dates: set[dt.date] = set()
         for year_folder in sorted(settings.source_dir.iterdir()):
             if not year_folder.is_dir():
                 continue
@@ -471,7 +471,7 @@ class Writing:
         month: int,
         year: int,
         restrict_to_paths: set[pathlib.Path] | None = None,
-        all_seen_dates: set[datetime.date],
+        all_seen_dates: set[dt.date],
         zero_pad: bool = False,
     ) -> Iterator[Writing]:
         for path in sorted(folder.iterdir()):
@@ -499,7 +499,7 @@ class Writing:
             yield writing
 
     @functools.cached_property
-    def dates(self) -> list[datetime.date]:
+    def dates(self) -> list[dt.date]:
         return [p.date for p in self.prompts]
 
     @property
@@ -515,11 +515,11 @@ class Writing:
         return self.markdown_file.base_metadata.is_draft
 
     @functools.cached_property
-    def first_date(self) -> datetime.date:
+    def first_date(self) -> dt.date:
         return self.prompts[0].date
 
     @functools.cached_property
-    def last_date(self) -> datetime.date:
+    def last_date(self) -> dt.date:
         return self.prompts[-1].date
 
     @functools.cached_property
@@ -550,11 +550,11 @@ class PromptGroup(pydantic.BaseModel):
     writing: Writing
 
     @functools.cached_property
-    def dates(self) -> list[datetime.date]:
+    def dates(self) -> list[dt.date]:
         return [p.date for p in self.prompts]
 
     @property
-    def first_date(self) -> datetime.date:
+    def first_date(self) -> dt.date:
         return self.dates[0]
 
     def __len__(self) -> int:

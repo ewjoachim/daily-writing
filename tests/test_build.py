@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import pathlib
 
 from daily_writing import artifacts, build
@@ -152,9 +152,7 @@ def test_build__drafts_and_future_writings(
     build_dir = tmp_path / "_build"
 
     build.build(
-        settings=dw_settings(
-            **fonts, include_cms=False, max_date=datetime.date(2024, 10, 1)
-        )
+        settings=dw_settings(**fonts, include_cms=False, max_date=dt.date(2024, 10, 1))
     )
     assert not (build_dir / "2024/10/1-alpha").exists()
     assert not (build_dir / "2024/10/2-beta").exists()
@@ -163,7 +161,7 @@ def test_build__drafts_and_future_writings(
         settings=dw_settings(
             **fonts,
             include_cms=False,
-            max_date=datetime.date(2024, 10, 2),
+            max_date=dt.date(2024, 10, 2),
             include_drafts=True,
         )
     )

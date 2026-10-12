@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import io
 import pathlib
 import zoneinfo
@@ -17,14 +17,14 @@ class FeedEntryArtifact:
     artifact_id: str
     title: str
     link: str
-    date: datetime.date
+    date: dt.date
 
 
 class Feed:
     def __init__(
         self,
         settings: settings_module.Settings,
-        updated: datetime.datetime | None = None,
+        updated: dt.datetime | None = None,
     ):
         self.feed_gen: FeedGenerator = FeedGenerator()
         self.feed_gen.id(str(settings.site_url))
@@ -39,14 +39,14 @@ class Feed:
         self.atom_path: pathlib.Path = settings.atom_path
         self.feed_gen.updated(updated)
 
-    def add_entry(self, item_id: str, title: str, link: str, date: datetime.date):
+    def add_entry(self, item_id: str, title: str, link: str, date: dt.date):
         entry = self.feed_gen.add_entry()  # pyright: ignore[reportUnknownVariableType]
         entry.id(item_id)
         entry.title(title)
         entry.link(href=link)
         entry.updated(
-            datetime.datetime.combine(
-                date, datetime.time(), tzinfo=zoneinfo.ZoneInfo(self.timezone)
+            dt.datetime.combine(
+                date, dt.time(), tzinfo=zoneinfo.ZoneInfo(self.timezone)
             ).isoformat()
         )
 

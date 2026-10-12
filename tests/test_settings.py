@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import pathlib
 
 import pydantic
@@ -232,7 +232,7 @@ def _clear_pyproject_cache():
 
 def test_settings_max_date_default(dw_settings):
     settings = dw_settings()
-    assert isinstance(settings.max_date, datetime.date)
+    assert isinstance(settings.max_date, dt.date)
 
 
 def test_atom_path_default(dw_settings):
