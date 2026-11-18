@@ -47,6 +47,10 @@ jobs:
             os: ubuntu-latest
           - python_version: "3.14"
             os: windows-latest
+          - python_version: "3.15"
+            os: ubuntu-latest
+          - python_version: "3.15"
+            os: windows-latest
 
     name: "py${{ matrix.python_version }} (${{ matrix.os }})"
     runs-on: ${{ matrix.os }}
