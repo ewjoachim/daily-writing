@@ -176,7 +176,6 @@ addopts = [
     "-vv",
     "--strict-markers",
     "-rfE",
-    "-m not benchmark",
     "--cov=daily_writing",
     "--cov-report=term-missing",
     "--cov-report=html",
